@@ -1,0 +1,575 @@
+# Project Snapshot
+Generated: 2026-07-23T16:40:52Z
+Commit: 0ab480b
+
+----- BEGIN FILE: api.js -----
+(sha1: 9755463be0bd0be2d7fdcd73cbaf8093185c55c0)
+
+"use strict";
+
+/* ---------- Core fetch ---------- */
+async function apiCall(method, path, bodyObj){
+  const opts = {
+    method,
+    headers: { "X-CSRF-Header": "-", "Content-Type": "application/json" },
+    credentials: "include"
+  };
+  if (bodyObj !== undefined && method !== "GET") opts.body = JSON.stringify(bodyObj);
+
+  const res  = await fetch(baseUrl() + path, opts);
+  const text = await res.text();
+  let json;
+  try { json = text ? JSON.parse(text) : {}; }
+  catch (e) { json = { _raw: text }; }
+
+  if (!res.ok){
+    const m = messagesFrom(json) || `${res.status} ${res.statusText}`;
+    const err = new Error(m); err.payload = json; err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+/* API returns either "Message" (string) or "Messages" (array) */
+function messagesFrom(json){
+  if (!json) return "";
+  if (Array.isArray(json.Messages) && json.Messages.length) return json.Messages.join(" | ");
+  if (typeof json.Message === "string" && json.Message) return json.Message;
+  if (Array.isArray(json.Result) && json.Result.every(x => typeof x === "string")) return json.Result.join(" | ");
+  if (json._raw) return json._raw;
+  return "";
+}
+----- END FILE: api.js -----
+
+----- BEGIN FILE: config.js -----
+(sha1: 8574165b5252a50490a2f35dfaddc9def2032bd8)
+
+"use strict";
+
+/* ---------- Fixed config ---------- */
+const API_VERSION = "v2";
+
+/* ---------- Shared state ---------- */
+let currentTab = "triggers";   // "triggers" | "actions"
+let cache = { triggers: [], actions: [] };
+let editingExisting = false;
+let WORKSPACE_ID = null;        // resolved once at startup
+let HOST = "";                  // resolved once at startup (may be "" => relative)
+
+/* ---------- DOM helper ---------- */
+const $ = id => document.getElementById(id);
+
+/* ---------- Context detection (from URL) ---------- */
+function getWorkspaceId(){
+  // Primary: AppID on the top window (standard Relativity custom-page context)
+  try {
+    const p = new URLSearchParams(window.top.location.search);
+    const id = p.get("AppID");
+    if (id) return id;
+  } catch (e) { /* cross-origin top access blocked; fall through */ }
+  // Fallback: query string on this iframe's own URL
+  const p2 = new URLSearchParams(window.location.search);
+  return p2.get("AppID") || p2.get("workspaceId") || p2.get("WorkspaceID") || null;
+}
+
+function getHost(){
+  // Prefer the parent Relativity instance origin
+  try {
+    if (window.top && window.top.location && window.top.location.origin){
+      return window.top.location.origin;
+    }
+  } catch (e) { /* cross-origin blocked */ }
+  // Fallback: this document's origin (same instance), or "" for relative URLs
+  return window.location.origin || "";
+}
+
+/* ---------- URL building ---------- */
+function baseUrl(){
+  const host = (HOST || "").replace(/\/+$/,"");
+  return `${host}/Relativity.REST/api/relativity-automated-workflows/${API_VERSION}/workspaces/${WORKSPACE_ID}`;
+}
+function endpoint(){ return currentTab === "triggers" ? "/triggers" : "/actions"; }
+----- END FILE: config.js -----
+
+----- BEGIN FILE: editor.js -----
+(sha1: cf64950969539e971194d7d4e7b893aabb4e2396)
+
+"use strict";
+
+/* ---------- Open / close ---------- */
+function openEditor(existingItem){
+  editingExisting = !!existingItem;
+  const isTrig = currentTab === "triggers";
+  $("modalTitle").textContent =
+    (editingExisting ? "Edit " : "New ") + (isTrig ? "Trigger" : "Action");
+
+  const data = existingItem
+    ? JSON.parse(JSON.stringify(existingItem))
+    : JSON.parse(JSON.stringify(isTrig ? TRIGGER_TPL : ACTION_TPL));
+
+  $("fLabel").value   = data.Label || "";
+  $("fId").value      = data.ID || "";
+  $("fGroup").value   = data.Group || "";
+  $("fVersion").value = data.Version != null ? data.Version : 1;
+  $("fId").readOnly   = editingExisting; // ID + version identify the record; keep stable when editing
+  $("fJson").value    = JSON.stringify(data, null, 2);
+
+  $("overlay").classList.add("show");
+}
+function closeEditor(){ $("overlay").classList.remove("show"); }
+
+/* ---------- Sync the quick-fill fields into the JSON body ---------- */
+function applyFieldsToJson(){
+  let obj;
+  try { obj = JSON.parse($("fJson").value || "{}"); }
+  catch(e){ setStatus("Body JSON is invalid: " + e.message, "err"); return null; }
+  obj.Label   = $("fLabel").value.trim();
+  obj.ID      = $("fId").value.trim();
+  obj.Group   = $("fGroup").value.trim();
+  obj.Version = Number($("fVersion").value) || 1;
+  $("fJson").value = JSON.stringify(obj, null, 2);
+  return obj;
+}
+
+/* ---------- Save (create or update) ---------- */
+async function saveItem(){
+  const obj = applyFieldsToJson();
+  if (!obj) return;
+  if (!obj.ID){ setStatus("An ID is required.", "err"); return; }
+
+  setStatus("Saving…", "info");
+  try {
+    const json = await apiCall("PUT", endpoint(), { body: obj });
+    if (json.Success === false){
+      setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
+      return;
+    }
+    setStatus(messagesFrom(json) || "Saved.", "ok");
+    closeEditor();
+    await loadList();
+  } catch (e){
+    setStatus("Save failed: " + e.message, "err");
+  }
+}
+
+/* ---------- Delete ---------- */
+async function deleteItem(item){
+  const isTrig = currentTab === "triggers";
+  const ok = confirm(
+    `Delete ${isTrig ? "trigger" : "action"} "${item.ID}" (v${item.Version})?\n\n` +
+    `Note: it will NOT be deleted if it is used by a workflow.`);
+  if (!ok) return;
+
+  const body = isTrig
+    ? { triggerID: item.ID, triggerVersion: item.Version }
+    : { actionID:  item.ID, actionVersion:  item.Version };
+
+  setStatus("Deleting…", "info");
+  try {
+    const json = await apiCall("DELETE", endpoint(), body);
+    if (json.Success === false){
+      setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
+      return;
+    }
+    setStatus(messagesFrom(json) || "Deleted.", "ok");
+    await loadList();
+  } catch (e){
+    setStatus("Delete failed: " + e.message, "err");
+  }
+}
+----- END FILE: editor.js -----
+
+----- BEGIN FILE: index.html -----
+(sha1: 7d409139853e910ccfeaa8d4faf5bc2d64b1022b)
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Automated Workflows Manager</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+  <h1>Automated Workflows Manager</h1>
+  <div id="connInfo" class="conn-info">Detecting workspace…</div>
+</header>
+
+<main>
+  <div id="status" class="status"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="triggers">Triggers</button>
+    <button class="tab" data-tab="actions">Actions</button>
+  </div>
+
+  <div class="toolbar">
+    <button id="newBtn" class="primary">+ New <span class="entlabel">Trigger</span></button>
+    <button id="refreshBtn" class="ghost">Refresh</button>
+    <div class="spacer"></div>
+    <input id="search" class="search" placeholder="Filter by label, ID, or group..." />
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:24%">Label</th>
+          <th style="width:36%">ID</th>
+          <th style="width:16%">Group</th>
+          <th style="width:8%">Version</th>
+          <th style="width:16%">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="grid">
+        <tr><td colspan="5" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Editor modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="head">
+      <h2 id="modalTitle">New Trigger</h2>
+      <button class="close" id="modalClose">&times;</button>
+    </div>
+    <div class="body">
+      <div class="grid">
+        <div class="field"><label>Label</label><input id="fLabel" /></div>
+        <div class="field"><label>ID (unique key)</label><input id="fId" class="mono" placeholder="my-company/on-example" /></div>
+        <div class="field"><label>Group</label><input id="fGroup" placeholder="Other" /></div>
+        <div class="field"><label>Version</label><input id="fVersion" type="number" value="1" min="1" /></div>
+      </div>
+      <div class="jsonlabel">
+        <strong>Body JSON</strong>
+        <div class="tplbtns">
+          <button class="sm ghost" id="syncFields" title="Copy the four fields above into the JSON">Apply fields ↴</button>
+          <button class="sm ghost" id="loadTpl">Insert template</button>
+          <button class="sm ghost" id="formatJson">Format</button>
+        </div>
+      </div>
+      <textarea id="fJson" class="json" spellcheck="false"></textarea>
+      <div class="hint">This is sent as the <span class="mono">body</span> object of the PUT payload. Edit nested Inputs / Steps / States here. “Apply fields” writes the four fields above into the JSON.</div>
+    </div>
+    <div class="foot">
+      <button class="ghost" id="modalCancel">Cancel</button>
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts load in dependency order; main.js runs the startup logic and must be last -->
+config.js
+api.jsscript>
+templates.js
+<script src="util.js"></script>
+list.js
+editor.js
+main.js
+</body>
+</html>
+----- END FILE: index.html -----
+
+----- BEGIN FILE: list.js -----
+(sha1: 2004834f5c96f8ff866e02af794ad36e5361e811)
+
+"use strict";
+
+/* ---------- Load ---------- */
+async function loadList(){
+  if (!WORKSPACE_ID) return;
+  setStatus(`Loading ${currentTab}…`, "info");
+  try {
+    const json = await apiCall("GET", endpoint());
+    const items = Array.isArray(json.Result) ? json.Result : [];
+    cache[currentTab] = items;
+    renderGrid();
+    setStatus(`Loaded ${items.length} ${currentTab}.`, "ok");
+  } catch (e){
+    cache[currentTab] = [];
+    renderGrid();
+    setStatus(`Failed to load ${currentTab}: ${e.message}`, "err");
+  }
+}
+
+/* ---------- Filtering ---------- */
+function filteredItems(){
+  const term = $("search").value.trim().toLowerCase();
+  let items = cache[currentTab] || [];
+  if (term){
+    items = items.filter(it =>
+      [it.Label, it.ID, it.Group].filter(Boolean)
+        .some(v => String(v).toLowerCase().includes(term)));
+  }
+  return items;
+}
+// Alias kept for clarity where row indices are resolved
+function visibleItems(){ return filteredItems(); }
+
+/* ---------- Render ---------- */
+function renderGrid(){
+  const grid = $("grid");
+  const items = filteredItems();
+  if (!items.length){
+    grid.innerHTML = `<tr><td colspan="5" class="empty">No ${currentTab} found.</td></tr>`;
+    return;
+  }
+  grid.innerHTML = items.map((it, i) => {
+    const label = esc(it.Label || "(no label)");
+    const id    = esc(it.ID || "");
+    const group = esc(it.Group || "");
+    const ver   = it.Version != null ? it.Version : "";
+    return `<tr>
+      <td>${label}</td>
+      <td class="mono">${id}</td>
+      <td>${group ? `<span class="pill">${group}</span>` : ""}</td>
+      <td>${ver}</td>
+      <td class="rowbtns">
+        <button class="sm ghost" data-act="edit" data-i="${i}">Edit</button>
+        <button class="sm danger" data-act="del" data-i="${i}">Delete</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+/* ---------- Tabs ---------- */
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === tab));
+  document.querySelectorAll(".entlabel").forEach(e =>
+    e.textContent = tab === "triggers" ? "Trigger" : "Action");
+  $("search").value = "";
+  renderGrid();
+  if (WORKSPACE_ID && !(cache[tab] || []).length) loadList();
+}
+
+----- END FILE: list.js -----
+
+----- BEGIN FILE: main.js -----
+(sha1: b3938a446f4f7c8c8e6e3bd3483e0dec3b68c94e)
+
+"use strict";
+
+/* ---------- Startup ---------- */
+function initContext(){
+  WORKSPACE_ID = getWorkspaceId();
+  HOST = getHost();
+  const info = $("connInfo");
+
+  if (!WORKSPACE_ID){
+    info.className = "conn-info err";
+    info.textContent = "Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.";
+    $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
+    $("newBtn").disabled = true;
+    $("refreshBtn").disabled = true;
+    return false;
+  }
+
+  info.className = "conn-info";
+  const hostLabel = HOST || "current instance";
+  info.innerHTML =
+    `Connected to <span class="badge">${esc(hostLabel)}</span>` +
+    ` · Workspace <span class="badge">${esc(WORKSPACE_ID)}</span>` +
+    ` · API <span class="badge">${API_VERSION}</span>`;
+  return true;
+}
+
+/* ---------- Event wiring ---------- */
+document.addEventListener("DOMContentLoaded", () => {
+  const ready = initContext();
+
+  $("refreshBtn").onclick = loadList;
+  $("search").oninput = renderGrid;
+
+  document.querySelectorAll(".tab").forEach(t =>
+    t.onclick = () => switchTab(t.dataset.tab));
+
+  $("newBtn").onclick = () => { if (WORKSPACE_ID) openEditor(null); };
+
+  $("grid").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const item = visibleItems()[Number(btn.dataset.i)];
+    if (!item) return;
+    if (btn.dataset.act === "edit") openEditor(item);
+    else deleteItem(item);
+  });
+
+  // modal buttons
+  $("modalClose").onclick = closeEditor;
+  $("modalCancel").onclick = closeEditor;
+  $("saveBtn").onclick = saveItem;
+  $("syncFields").onclick = applyFieldsToJson;
+  $("formatJson").onclick = () => {
+    try { $("fJson").value = JSON.stringify(JSON.parse($("fJson").value), null, 2); }
+    catch(e){ setStatus("Invalid JSON: " + e.message, "err"); }
+  };
+  $("loadTpl").onclick = () => {
+    const tpl = currentTab === "triggers" ? TRIGGER_TPL : ACTION_TPL;
+    $("fJson").value = JSON.stringify(tpl, null, 2);
+    $("fLabel").value = tpl.Label; $("fId").value = tpl.ID;
+    $("fGroup").value = tpl.Group || ""; $("fVersion").value = tpl.Version;
+  };
+  $("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeEditor(); });
+
+  // Auto-load once context is known
+  if (ready) loadList();
+});
+----- END FILE: main.js -----
+
+----- BEGIN FILE: styles.css -----
+(sha1: 00f5271cbd432699c424942281c8fa43b51595a5)
+
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
+  --muted:#6b7684; --accent:#0a6ed1; --accent-dk:#084f96;
+  --danger:#c0392b; --danger-dk:#96271a; --ok:#2e7d32; --warn:#b26a00;
+  --shadow:0 1px 3px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
+h1{font-size:18px;margin:0 0 4px}
+.conn-info{font-size:12px;color:var(--muted)}
+.conn-info .badge{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;
+  padding:1px 9px;margin-left:4px;font-family:Consolas,"Courier New",monospace;color:var(--text)}
+.conn-info.err{color:var(--danger)}
+input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
+  border-radius:4px;padding:6px 8px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
+button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:7px 14px;background:#eef1f5;color:var(--text)}
+button:hover{background:#e2e7ee}
+button.primary{background:var(--accent);color:#fff}
+button.primary:hover{background:var(--accent-dk)}
+button.danger{background:var(--danger);color:#fff}
+button.danger:hover{background:var(--danger-dk)}
+button.ghost{background:transparent;border-color:var(--border)}
+button.sm{padding:4px 9px;font-size:12px}
+button:disabled{opacity:.5;cursor:not-allowed}
+main{padding:16px}
+.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
+  background:transparent;color:var(--muted);font-weight:600}
+.tab.active{background:var(--panel);color:var(--accent);border-color:var(--border);margin-bottom:-1px}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar .spacer{flex:1}
+.toolbar .search{width:240px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f7f9fb}
+.mono{font-family:Consolas,"Courier New",monospace;font-size:12.5px}
+.pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
+.rowbtns{display:flex;gap:6px;white-space:nowrap}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
+.status.show{display:block}
+.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
+.status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
+.status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(15,23,35,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:8px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal h2{margin:0;font-size:16px}
+.modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal .body{padding:18px;overflow:auto}
+.modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.grid .field{display:flex;flex-direction:column;gap:3px}
+.grid label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.tplbtns{display:flex;gap:6px}
+.close{background:transparent;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)}
+.close:hover{color:var(--text)}
+----- END FILE: styles.css -----
+
+----- BEGIN FILE: templates.js -----
+(sha1: 098cde5c132d1e5377788ae144b70fcef138e443)
+
+"use strict";
+
+/* ---------- Starter payloads for new items ---------- */
+const TRIGGER_TPL = {
+  Group: "Other",
+  Label: "Example Added",
+  ID: "my-company/on-example-added",
+  Version: 1,
+  Inputs: [
+    { Label: "Type(s)", ID: "type", DefaultValue: "", UIElementType: "MultiCheckbox",
+      InputSources: [
+        { Label: "Processing Set", Value: "processing" },
+        { Label: "Integration Points (RIP)", Value: "rip" }
+      ], Properties: {} }
+  ],
+  States: ["complete", "complete-with-errors", "error", "canceled"],
+  SelectableAsInitialTrigger: true
+};
+
+const ACTION_TPL = {
+  Label: "Send Email",
+  ID: "my-company/send-email",
+  Group: "Notifications",
+  Version: 1,
+  Inputs: [
+    { Label: "Recipient", ID: "recipient-list-id",
+      Placeholder: "Enter email addresses separated by a semicolon (;)", UIElementType: "Email" }
+  ],
+  Steps: [
+    { Type: "RPC",
+      Http: {
+        Url: "@{variables('RelativityInstanceURL')}/MyCompany.REST/API/v1/notification/workspace/@{variables('WorkspaceID')}/email/send",
+        Headers: { "x-csrf-header": "-", "content-type": "application/json" },
+        Body: { body: {
+          WorkflowArtifactId: "@variables('WorkflowArtifactId')",
+          WorkflowRunId: "@workflow().run.id",
+          ActionDefinitionId: "@variables('ActionDefinitionId')",
+          ActionIndex: "@variables('ActionIndex')",
+          SequenceId: "@variables('SequenceId')"
+        }},
+        Method: "Post"
+      },
+      NotifiesCompletion: true }
+  ]
+};
+----- END FILE: templates.js -----
+
+----- BEGIN FILE: util.js -----
+(sha1: 64e01a8fa003edaa7d51dd2db3d3b6ea49dd5441)
+
+"use strict";
+
+/* ---------- Status banner ---------- */
+function setStatus(msg, type){
+  const el = $("status");
+  el.textContent = msg;
+  el.className = "status show " + (type || "info");
+}
+function clearStatus(){ $("status").className = "status"; }
+
+/* ---------- HTML escape ---------- */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+----- END FILE: util.js -----
+
+## Included files
+api.js
+config.js
+editor.js
+index.html
+list.js
+main.js
+styles.css
+templates.js
+util.js

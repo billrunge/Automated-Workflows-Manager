@@ -1,89 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Automated Workflows Manager</title>
-<link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Automated Workflows Manager</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-<header>
-  <h1>Automated Workflows Manager</h1>
-  <div id="connInfo" class="conn-info">Detecting workspace…</div>
-</header>
+  <header>
+    <h1>Automated Workflows Manager</h1>
+    <div id="connInfo" class="conn-info">Detecting workspace…</div>
+  </header>
 
-<main>
-  <div id="status" class="status"></div>
+  <main>
+    <div id="status" class="status"></div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="triggers">Triggers</button>
-    <button class="tab" data-tab="actions">Actions</button>
-  </div>
-
-  <div class="toolbar">
-    <button id="newBtn" class="primary">+ New <span class="entlabel">Trigger</span></button>
-    <button id="refreshBtn" class="ghost">Refresh</button>
-    <div class="spacer"></div>
-    <input id="search" class="search" placeholder="Filter by label, ID, or group..." />
-  </div>
-
-  <div class="card">
-    <table>
-      <thead>
-        <tr>
-          <th style="width:24%">Label</th>
-          <th style="width:36%">ID</th>
-          <th style="width:16%">Group</th>
-          <th style="width:8%">Version</th>
-          <th style="width:16%">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="grid">
-        <tr><td colspan="5" class="empty">Loading…</td></tr>
-      </tbody>
-    </table>
-  </div>
-</main>
-
-<!-- Editor modal -->
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <div class="head">
-      <h2 id="modalTitle">New Trigger</h2>
-      <button class="close" id="modalClose">&times;</button>
+    <div class="tabs">
+      <button class="tab active" data-tab="triggers">Triggers</button>
+      <button class="tab" data-tab="actions">Actions</button>
     </div>
-    <div class="body">
-      <div class="grid">
-        <div class="field"><label>Label</label><input id="fLabel" /></div>
-        <div class="field"><label>ID (unique key)</label><input id="fId" class="mono" placeholder="my-company/on-example" /></div>
-        <div class="field"><label>Group</label><input id="fGroup" placeholder="Other" /></div>
-        <div class="field"><label>Version</label><input id="fVersion" type="number" value="1" min="1" /></div>
+
+    <div class="toolbar">
+      <button id="newBtn" class="primary">+ New <span class="entlabel">Trigger</span></button>
+      <button id="refreshBtn" class="ghost">Refresh</button>
+      <div class="spacer"></div>
+      <input id="search" class="search" placeholder="Filter by label, ID, or group..." />
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:24%">Label</th>
+            <th style="width:36%">ID</th>
+            <th style="width:16%">Group</th>
+            <th style="width:8%">Version</th>
+            <th style="width:16%">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="grid">
+          <tr>
+            <td colspan="5" class="empty">Loading…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Editor modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <div class="head">
+        <h2 id="modalTitle">New Trigger</h2>
+        <button class="close" id="modalClose">&times;</button>
       </div>
-      <div class="jsonlabel">
-        <strong>Body JSON</strong>
-        <div class="tplbtns">
-          <button class="sm ghost" id="syncFields" title="Copy the four fields above into the JSON">Apply fields ↴</button>
-          <button class="sm ghost" id="loadTpl">Insert template</button>
-          <button class="sm ghost" id="formatJson">Format</button>
+      <div class="body">
+        <div class="grid">
+          <div class="field"><label>Label</label><input id="fLabel" /></div>
+          <div class="field"><label>ID (unique key)</label><input id="fId" class="mono"
+              placeholder="my-company/on-example" /></div>
+          <div class="field"><label>Group</label><input id="fGroup" placeholder="Other" /></div>
+          <div class="field"><label>Version</label><input id="fVersion" type="number" value="1" min="1" /></div>
         </div>
+        <div class="jsonlabel">
+          <strong>Body JSON</strong>
+          <div class="tplbtns">
+            <button class="sm ghost" id="syncFields" title="Copy the four fields above into the JSON">Apply fields
+              ↴</button>
+            <button class="sm ghost" id="loadTpl">Insert template</button>
+            <button class="sm ghost" id="formatJson">Format</button>
+          </div>
+        </div>
+        <textarea id="fJson" class="json" spellcheck="false"></textarea>
+        <div class="hint">This is sent as the <span class="mono">body</span> object of the PUT payload. Edit nested
+          Inputs / Steps / States here. “Apply fields” writes the four fields above into the JSON.</div>
       </div>
-      <textarea id="fJson" class="json" spellcheck="false"></textarea>
-      <div class="hint">This is sent as the <span class="mono">body</span> object of the PUT payload. Edit nested Inputs / Steps / States here. “Apply fields” writes the four fields above into the JSON.</div>
-    </div>
-    <div class="foot">
-      <button class="ghost" id="modalCancel">Cancel</button>
-      <button class="primary" id="saveBtn">Save</button>
+      <div class="foot">
+        <button class="ghost" id="modalCancel">Cancel</button>
+        <button class="primary" id="saveBtn">Save</button>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- Scripts load in dependency order; main.js runs the startup logic and must be last -->
-config.js
-api.jsscript>
-templates.js
-<script src="util.js"></script>
-list.js
-editor.js
-main.js
+  <!-- Scripts load in dependency order; main.js runs the startup logic and must be last -->
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="templates.js"></script>
+  <script src="util.js"></script>
+  <script src="list.js"></script>
+  <script src="editor.js"></script>
+  <script src="main.js"></script>
 </body>
+
 </html>

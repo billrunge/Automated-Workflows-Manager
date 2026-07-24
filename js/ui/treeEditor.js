@@ -1,13 +1,8 @@
 "use strict";
 
 /* ============================================================
- * Recursive JSON tree editor.
- *
- * Renders an editable, type-aware, infinitely-nestable view of
- * a plain JS object/array. Supports editing primitives, changing
- * a node's type, renaming keys, adding/removing fields & items,
- * and collapsing branches. Mutates the supplied object IN PLACE
- * so the caller always holds the live value via getData().
+ * Recursive JSON tree editor. Mutates the supplied object in
+ * place; caller reads the live value via getData().
  * ========================================================== */
 
 const TYPES = ["string", "number", "boolean", "object", "array", "null"];

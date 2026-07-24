@@ -5,17 +5,16 @@
 import { state } from "../core/state.js";
 import { listEntities } from "../services/entityService.js";
 import { renderGrid } from "../ui/grid.js";
-import { setStatus } from "../ui/status.js";
+import { setStatus, clearStatus } from "../ui/status.js";
 
 export async function loadList() {
   if (!state.workspaceId) return;
   const tab = state.currentTab;
-  setStatus(`Loading ${tab}…`, "info");
   try {
     const items = await listEntities(tab);
     state.cache[tab] = items;
     renderGrid();
-    setStatus(`Loaded ${items.length} ${tab}.`, "ok");
+    clearStatus();                 // success is silent (no green toast)
   } catch (e) {
     state.cache[tab] = [];
     renderGrid();

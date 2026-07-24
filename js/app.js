@@ -3,6 +3,9 @@
 /* ============================================================
  * Application entry point (loaded as a module, so deferred).
  * Resolves context, wires events, kicks off the first load.
+ *
+ * There is no manual Refresh button: the list auto-refreshes on
+ * boot, on every tab switch, and after every save/delete.
  * ========================================================== */
 
 import { $ } from "./core/utils.js";
@@ -23,14 +26,12 @@ function initContext() {
     setStatus("Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.", "err");
     $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
     $("newBtn").disabled = true;
-    $("refreshBtn").disabled = true;
     return false;
   }
   return true;
 }
 
 function wireEvents() {
-  $("refreshBtn").onclick = loadList;
   $("search").oninput = renderGrid;
 
   document.querySelectorAll(".tab").forEach(t =>

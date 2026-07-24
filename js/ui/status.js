@@ -1,6 +1,9 @@
 "use strict";
 
-/* Status banner rendering. */
+/* Status banner rendering.
+ *
+ * Success is now silent — we clear the banner rather than show a
+ * green toast. Only errors (red) and brief info (blue) render. */
 
 import { $ } from "../core/utils.js";
 
@@ -11,5 +14,7 @@ export function setStatus(msg, type) {
 }
 
 export function clearStatus() {
-  $("status").className = "status";
+  const el = $("status");
+  el.textContent = "";
+  el.className = "status";
 }

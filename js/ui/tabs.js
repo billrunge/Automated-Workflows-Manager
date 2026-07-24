@@ -1,6 +1,9 @@
 "use strict";
 
-/* Tab switching between Triggers and Actions. */
+/* Tab switching between Triggers and Actions.
+ *
+ * Renders instantly from cache, then always re-fetches so the
+ * grid is live without a manual Refresh button. */
 
 import { $ } from "../core/utils.js";
 import { state } from "../core/state.js";
@@ -18,7 +21,7 @@ export function switchTab(tab) {
     e.textContent = ENTITY[tab].singular);
 
   $("search").value = "";
-  renderGrid();
+  renderGrid();                    // instant paint from cache
 
-  if (state.workspaceId && !(state.cache[tab] || []).length) loadList();
+  if (state.workspaceId) loadList(); // always refresh from server
 }

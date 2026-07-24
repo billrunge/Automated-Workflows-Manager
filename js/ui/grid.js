@@ -16,9 +16,7 @@ export function filteredItems() {
   return items;
 }
 
-export function visibleItems() {
-  return filteredItems();
-}
+export function visibleItems() { return filteredItems(); }
 
 export function renderGrid() {
   const grid = $("grid");

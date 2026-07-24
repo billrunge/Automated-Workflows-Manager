@@ -38,9 +38,9 @@ tr:hover td{background:#f7f9fb}
 .pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
 .rowbtns{display:flex;gap:6px;white-space:nowrap}
 .empty{padding:26px;text-align:center;color:var(--muted)}
+/* Status banner: errors (red) and brief info (blue) only. Success is silent. */
 .status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
 .status.show{display:block}
-.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
 .status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
 .status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
 /* modal */

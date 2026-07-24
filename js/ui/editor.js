@@ -3,18 +3,13 @@
 /* ============================================================
  * Editor modal.
  *
- * Two synchronized ways to edit a trigger/action body:
- *   - "Form" view : quick fields (Label/ID/Group/Version), a
- *                   type-aware "Add Input" picker, and a
- *                   recursive tree editor for everything else.
- *   - "JSON" view : the raw textarea escape hatch.
+ * Two synchronized views: "Form" (quick fields + type-aware
+ * Add Input picker + recursive tree editor) and "JSON" (raw
+ * escape hatch). `workingObj` is the single source of truth.
  *
- * The "Add Input" picker scaffolds a correctly-shaped Input for
- * the chosen UIElementType (Text, Number, Email, Dropdown,
- * MultiCheckbox, Switch) and drops it into the Inputs array;
- * the tree editor then handles fine-tuning and nesting.
- *
- * `workingObj` is the single source of truth.
+ * Success is silent: on save/delete we clear the banner and
+ * refresh the list rather than showing a green toast. Only
+ * errors are surfaced.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";
@@ -24,7 +19,7 @@ import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
 import { templateFor } from "../data/templates.js";
 import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
-import { setStatus } from "./status.js";
+import { setStatus, clearStatus } from "./status.js";
 import { loadList } from "../features/list.js";
 import { createTreeEditor } from "./treeEditor.js";
 
@@ -54,7 +49,7 @@ function applyQuickFieldsToObj() {
 /* ---------- Populate the UIElementType picker once ---------- */
 function populateInputTypePicker() {
   const sel = $("inputType");
-  if (sel.options.length) return; // already filled
+  if (sel.options.length) return;
   UI_ELEMENT_TYPES.forEach(tp => {
     const o = document.createElement("option");
     o.value = tp;
@@ -68,11 +63,9 @@ function populateInputTypePicker() {
 function addInput() {
   const uiType = $("inputType").value || "Text";
   if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
-  // Suffix helps keep default IDs distinct when adding several quickly.
   const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
   workingObj.Inputs.push(makeInput(uiType, suffix));
   tree.render();
-  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
 }
 
 /* ---------- One-time wiring of tree + listeners ---------- */
@@ -117,8 +110,8 @@ export function setView(next) {
   if (next === "json") {
     applyQuickFieldsToObj();
     $("fJson").value = JSON.stringify(workingObj, null, 2);
-    $("treeWrap").style.display  = "none";
-    $("quickGrid").style.display = "none";
+    $("treeWrap").style.display   = "none";
+    $("quickGrid").style.display  = "none";
     $("inputAdder").style.display = "none";
     $("fJson").style.display      = "";
     $("formatJson").style.display = "";
@@ -182,9 +175,9 @@ export async function saveItem() {
       setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
       return;
     }
-    setStatus(messagesFrom(json) || "Saved.", "ok");
+    clearStatus();          // success is silent
     closeEditor();
-    await loadList();
+    await loadList();       // auto-refresh the grid
   } catch (e) {
     setStatus("Save failed: " + e.message, "err");
   }
@@ -205,8 +198,8 @@ export async function deleteItem(item) {
       setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
       return;
     }
-    setStatus(messagesFrom(json) || "Deleted.", "ok");
-    await loadList();
+    clearStatus();          // success is silent
+    await loadList();       // auto-refresh the grid
   } catch (e) {
     setStatus("Delete failed: " + e.message, "err");
   }

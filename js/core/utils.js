@@ -9,6 +9,4 @@ export function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-export function clone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
+export function clone(obj) { return JSON.parse(JSON.stringify(obj)); }

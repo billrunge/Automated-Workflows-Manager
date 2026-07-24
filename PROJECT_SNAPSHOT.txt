@@ -1,186 +1,80 @@
 # Project Snapshot
-Generated: 2026-07-23T16:56:29Z
-Commit: 4fb96ee
+Generated: 2026-07-24T16:19:12Z
+Commit: 9f18cd1
 
------ BEGIN FILE: api.js -----
-(sha1: 9755463be0bd0be2d7fdcd73cbaf8093185c55c0)
+----- BEGIN FILE: css/styles.css -----
+(sha1: 00f5271cbd432699c424942281c8fa43b51595a5)
 
-"use strict";
-
-/* ---------- Core fetch ---------- */
-async function apiCall(method, path, bodyObj){
-  const opts = {
-    method,
-    headers: { "X-CSRF-Header": "-", "Content-Type": "application/json" },
-    credentials: "include"
-  };
-  if (bodyObj !== undefined && method !== "GET") opts.body = JSON.stringify(bodyObj);
-
-  const res  = await fetch(baseUrl() + path, opts);
-  const text = await res.text();
-  let json;
-  try { json = text ? JSON.parse(text) : {}; }
-  catch (e) { json = { _raw: text }; }
-
-  if (!res.ok){
-    const m = messagesFrom(json) || `${res.status} ${res.statusText}`;
-    const err = new Error(m); err.payload = json; err.status = res.status;
-    throw err;
-  }
-  return json;
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
+  --muted:#6b7684; --accent:#0a6ed1; --accent-dk:#084f96;
+  --danger:#c0392b; --danger-dk:#96271a; --ok:#2e7d32; --warn:#b26a00;
+  --shadow:0 1px 3px rgba(0,0,0,.12);
 }
-
-/* API returns either "Message" (string) or "Messages" (array) */
-function messagesFrom(json){
-  if (!json) return "";
-  if (Array.isArray(json.Messages) && json.Messages.length) return json.Messages.join(" | ");
-  if (typeof json.Message === "string" && json.Message) return json.Message;
-  if (Array.isArray(json.Result) && json.Result.every(x => typeof x === "string")) return json.Result.join(" | ");
-  if (json._raw) return json._raw;
-  return "";
-}
------ END FILE: api.js -----
-
------ BEGIN FILE: config.js -----
-(sha1: 8574165b5252a50490a2f35dfaddc9def2032bd8)
-
-"use strict";
-
-/* ---------- Fixed config ---------- */
-const API_VERSION = "v2";
-
-/* ---------- Shared state ---------- */
-let currentTab = "triggers";   // "triggers" | "actions"
-let cache = { triggers: [], actions: [] };
-let editingExisting = false;
-let WORKSPACE_ID = null;        // resolved once at startup
-let HOST = "";                  // resolved once at startup (may be "" => relative)
-
-/* ---------- DOM helper ---------- */
-const $ = id => document.getElementById(id);
-
-/* ---------- Context detection (from URL) ---------- */
-function getWorkspaceId(){
-  // Primary: AppID on the top window (standard Relativity custom-page context)
-  try {
-    const p = new URLSearchParams(window.top.location.search);
-    const id = p.get("AppID");
-    if (id) return id;
-  } catch (e) { /* cross-origin top access blocked; fall through */ }
-  // Fallback: query string on this iframe's own URL
-  const p2 = new URLSearchParams(window.location.search);
-  return p2.get("AppID") || p2.get("workspaceId") || p2.get("WorkspaceID") || null;
-}
-
-function getHost(){
-  // Prefer the parent Relativity instance origin
-  try {
-    if (window.top && window.top.location && window.top.location.origin){
-      return window.top.location.origin;
-    }
-  } catch (e) { /* cross-origin blocked */ }
-  // Fallback: this document's origin (same instance), or "" for relative URLs
-  return window.location.origin || "";
-}
-
-/* ---------- URL building ---------- */
-function baseUrl(){
-  const host = (HOST || "").replace(/\/+$/,"");
-  return `${host}/Relativity.REST/api/relativity-automated-workflows/${API_VERSION}/workspaces/${WORKSPACE_ID}`;
-}
-function endpoint(){ return currentTab === "triggers" ? "/triggers" : "/actions"; }
------ END FILE: config.js -----
-
------ BEGIN FILE: editor.js -----
-(sha1: cf64950969539e971194d7d4e7b893aabb4e2396)
-
-"use strict";
-
-/* ---------- Open / close ---------- */
-function openEditor(existingItem){
-  editingExisting = !!existingItem;
-  const isTrig = currentTab === "triggers";
-  $("modalTitle").textContent =
-    (editingExisting ? "Edit " : "New ") + (isTrig ? "Trigger" : "Action");
-
-  const data = existingItem
-    ? JSON.parse(JSON.stringify(existingItem))
-    : JSON.parse(JSON.stringify(isTrig ? TRIGGER_TPL : ACTION_TPL));
-
-  $("fLabel").value   = data.Label || "";
-  $("fId").value      = data.ID || "";
-  $("fGroup").value   = data.Group || "";
-  $("fVersion").value = data.Version != null ? data.Version : 1;
-  $("fId").readOnly   = editingExisting; // ID + version identify the record; keep stable when editing
-  $("fJson").value    = JSON.stringify(data, null, 2);
-
-  $("overlay").classList.add("show");
-}
-function closeEditor(){ $("overlay").classList.remove("show"); }
-
-/* ---------- Sync the quick-fill fields into the JSON body ---------- */
-function applyFieldsToJson(){
-  let obj;
-  try { obj = JSON.parse($("fJson").value || "{}"); }
-  catch(e){ setStatus("Body JSON is invalid: " + e.message, "err"); return null; }
-  obj.Label   = $("fLabel").value.trim();
-  obj.ID      = $("fId").value.trim();
-  obj.Group   = $("fGroup").value.trim();
-  obj.Version = Number($("fVersion").value) || 1;
-  $("fJson").value = JSON.stringify(obj, null, 2);
-  return obj;
-}
-
-/* ---------- Save (create or update) ---------- */
-async function saveItem(){
-  const obj = applyFieldsToJson();
-  if (!obj) return;
-  if (!obj.ID){ setStatus("An ID is required.", "err"); return; }
-
-  setStatus("Saving…", "info");
-  try {
-    const json = await apiCall("PUT", endpoint(), { body: obj });
-    if (json.Success === false){
-      setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
-      return;
-    }
-    setStatus(messagesFrom(json) || "Saved.", "ok");
-    closeEditor();
-    await loadList();
-  } catch (e){
-    setStatus("Save failed: " + e.message, "err");
-  }
-}
-
-/* ---------- Delete ---------- */
-async function deleteItem(item){
-  const isTrig = currentTab === "triggers";
-  const ok = confirm(
-    `Delete ${isTrig ? "trigger" : "action"} "${item.ID}" (v${item.Version})?\n\n` +
-    `Note: it will NOT be deleted if it is used by a workflow.`);
-  if (!ok) return;
-
-  const body = isTrig
-    ? { triggerID: item.ID, triggerVersion: item.Version }
-    : { actionID:  item.ID, actionVersion:  item.Version };
-
-  setStatus("Deleting…", "info");
-  try {
-    const json = await apiCall("DELETE", endpoint(), body);
-    if (json.Success === false){
-      setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
-      return;
-    }
-    setStatus(messagesFrom(json) || "Deleted.", "ok");
-    await loadList();
-  } catch (e){
-    setStatus("Delete failed: " + e.message, "err");
-  }
-}
------ END FILE: editor.js -----
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
+h1{font-size:18px;margin:0 0 4px}
+.conn-info{font-size:12px;color:var(--muted)}
+.conn-info .badge{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;
+  padding:1px 9px;margin-left:4px;font-family:Consolas,"Courier New",monospace;color:var(--text)}
+.conn-info.err{color:var(--danger)}
+input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
+  border-radius:4px;padding:6px 8px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
+button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:7px 14px;background:#eef1f5;color:var(--text)}
+button:hover{background:#e2e7ee}
+button.primary{background:var(--accent);color:#fff}
+button.primary:hover{background:var(--accent-dk)}
+button.danger{background:var(--danger);color:#fff}
+button.danger:hover{background:var(--danger-dk)}
+button.ghost{background:transparent;border-color:var(--border)}
+button.sm{padding:4px 9px;font-size:12px}
+button:disabled{opacity:.5;cursor:not-allowed}
+main{padding:16px}
+.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
+  background:transparent;color:var(--muted);font-weight:600}
+.tab.active{background:var(--panel);color:var(--accent);border-color:var(--border);margin-bottom:-1px}
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar .spacer{flex:1}
+.toolbar .search{width:240px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f7f9fb}
+.mono{font-family:Consolas,"Courier New",monospace;font-size:12.5px}
+.pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
+.rowbtns{display:flex;gap:6px;white-space:nowrap}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
+.status.show{display:block}
+.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
+.status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
+.status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(15,23,35,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
+.overlay.show{display:flex}
+.modal{background:var(--panel);border-radius:8px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.modal h2{margin:0;font-size:16px}
+.modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal .body{padding:18px;overflow:auto}
+.modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.grid .field{display:flex;flex-direction:column;gap:3px}
+.grid label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
+.hint{font-size:12px;color:var(--muted);margin-top:6px}
+.tplbtns{display:flex;gap:6px}
+.close{background:transparent;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)}
+.close:hover{color:var(--text)}
+----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: 1aad05d149d4dcf043c4adf2ee4007bd9c74229e)
+(sha1: 64da94709c50cc5964c006bb1d5e96dbbac89b40)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -189,7 +83,7 @@ async function deleteItem(item){
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Automated Workflows Manager</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 
 <body>
@@ -268,64 +162,620 @@ async function deleteItem(item){
     </div>
   </div>
 
-  <!-- Scripts load in dependency order; main.js runs the startup logic and must be last -->
-  <script src="config.js"></script>
-  <script src="api.js"></script>
-  <script src="templates.js"></script>
-  <script src="util.js"></script>
-  <script src="list.js"></script>
-  <script src="editor.js"></script>
-  <script src="main.js"></script>
+  <!-- Single module entry point; all other modules are imported from here. -->
+  <script type="module" src="js/app.js"></script>
 </body>
 
 </html>
 
 ----- END FILE: index.html -----
 
------ BEGIN FILE: list.js -----
-(sha1: 2004834f5c96f8ff866e02af794ad36e5361e811)
+----- BEGIN FILE: js/app.js -----
+(sha1: aaed092a11bdee361aab79f5d29ff96b07eca527)
 
 "use strict";
 
-/* ---------- Load ---------- */
-async function loadList(){
-  if (!WORKSPACE_ID) return;
-  setStatus(`Loading ${currentTab}…`, "info");
+/* ============================================================
+ * Application entry point.
+ *
+ * Loaded as a module (deferred), so the DOM is already parsed
+ * when this runs. Responsible for: resolving context, painting
+ * the connection banner, wiring events, and kicking off the
+ * first load.
+ * ========================================================== */
+
+import { $, esc } from "./core/utils.js";
+import { state } from "./core/state.js";
+import { API_VERSION } from "./config/settings.js";
+import { resolveContext } from "./core/context.js";
+import { renderGrid } from "./ui/grid.js";
+import { visibleItems } from "./ui/grid.js";
+import { switchTab } from "./ui/tabs.js";
+import { loadList } from "./features/list.js";
+import {
+  openEditor, closeEditor, saveItem, deleteItem,
+  applyFieldsToJson, formatJson, loadTemplate
+} from "./ui/editor.js";
+
+/* ---------- Startup ---------- */
+function initContext() {
+  const ready = resolveContext();
+  const info = $("connInfo");
+
+  if (!ready) {
+    info.className = "conn-info err";
+    info.textContent = "Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.";
+    $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
+    $("newBtn").disabled = true;
+    $("refreshBtn").disabled = true;
+    return false;
+  }
+
+  info.className = "conn-info";
+  const hostLabel = state.host || "current instance";
+  info.innerHTML =
+    `Connected to <span class="badge">${esc(hostLabel)}</span>` +
+    ` · Workspace <span class="badge">${esc(state.workspaceId)}</span>` +
+    ` · API <span class="badge">${API_VERSION}</span>`;
+  return true;
+}
+
+/* ---------- Event wiring ---------- */
+function wireEvents() {
+  $("refreshBtn").onclick = loadList;
+  $("search").oninput = renderGrid;
+
+  document.querySelectorAll(".tab").forEach(t =>
+    t.onclick = () => switchTab(t.dataset.tab));
+
+  $("newBtn").onclick = () => { if (state.workspaceId) openEditor(null); };
+
+  $("grid").addEventListener("click", e => {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const item = visibleItems()[Number(btn.dataset.i)];
+    if (!item) return;
+    if (btn.dataset.act === "edit") openEditor(item);
+    else deleteItem(item);
+  });
+
+  // modal buttons
+  $("modalClose").onclick  = closeEditor;
+  $("modalCancel").onclick = closeEditor;
+  $("saveBtn").onclick     = saveItem;
+  $("syncFields").onclick  = applyFieldsToJson;
+  $("formatJson").onclick  = formatJson;
+  $("loadTpl").onclick     = loadTemplate;
+
+  $("overlay").addEventListener("click", e => {
+    if (e.target === $("overlay")) closeEditor();
+  });
+}
+
+/* ---------- Boot ---------- */
+function main() {
+  const ready = initContext();
+  wireEvents();
+  if (ready) loadList();
+}
+
+main();
+
+----- END FILE: js/app.js -----
+
+----- BEGIN FILE: js/config/settings.js -----
+(sha1: d8cf8b7a5def5f73a07d484a85f3e9d8d8009be4)
+
+"use strict";
+
+/* ============================================================
+ * Fixed application configuration.
+ * Values here do not change at runtime.
+ * ========================================================== */
+
+export const API_VERSION = "v2";
+
+/* The REST route template. {host} and {workspaceId} are filled at runtime. */
+export const API_ROOT = "/Relativity.REST/api/relativity-automated-workflows";
+
+/* The two entity types the app manages. */
+export const ENTITY = {
+  triggers: {
+    key: "triggers",
+    path: "/triggers",
+    singular: "Trigger",
+    lowerSingular: "trigger"
+  },
+  actions: {
+    key: "actions",
+    path: "/actions",
+    singular: "Action",
+    lowerSingular: "action"
+  }
+};
+
+----- END FILE: js/config/settings.js -----
+
+----- BEGIN FILE: js/core/api.js -----
+(sha1: 1c00ebc7e2ef4cf09636404124b065b7e6c171f5)
+
+"use strict";
+
+/* ============================================================
+ * Core REST transport.
+ *
+ * A single fetch wrapper plus a helper for extracting the
+ * various message shapes the API can return. No UI, no state.
+ * ========================================================== */
+
+import { baseUrl } from "./context.js";
+
+/* ---------- Core fetch ---------- */
+export async function apiCall(method, path, bodyObj) {
+  const opts = {
+    method,
+    headers: { "X-CSRF-Header": "-", "Content-Type": "application/json" },
+    credentials: "include"
+  };
+  if (bodyObj !== undefined && method !== "GET") opts.body = JSON.stringify(bodyObj);
+
+  const res  = await fetch(baseUrl() + path, opts);
+  const text = await res.text();
+  let json;
+  try { json = text ? JSON.parse(text) : {}; }
+  catch (e) { json = { _raw: text }; }
+
+  if (!res.ok) {
+    const m = messagesFrom(json) || `${res.status} ${res.statusText}`;
+    const err = new Error(m);
+    err.payload = json;
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+/* API returns either "Message" (string) or "Messages" (array). */
+export function messagesFrom(json) {
+  if (!json) return "";
+  if (Array.isArray(json.Messages) && json.Messages.length) return json.Messages.join(" | ");
+  if (typeof json.Message === "string" && json.Message) return json.Message;
+  if (Array.isArray(json.Result) && json.Result.every(x => typeof x === "string")) return json.Result.join(" | ");
+  if (json._raw) return json._raw;
+  return "";
+}
+
+----- END FILE: js/core/api.js -----
+
+----- BEGIN FILE: js/core/context.js -----
+(sha1: cf40c77a60ceb1828c34c0ed2d90dea837d66a56)
+
+"use strict";
+
+/* ============================================================
+ * Relativity platform context detection + URL building.
+ *
+ * Responsible only for figuring out WHERE we are (workspace,
+ * host) and how to build a REST base URL. Knows nothing about
+ * the DOM or the UI.
+ * ========================================================== */
+
+import { API_VERSION, API_ROOT } from "../config/settings.js";
+import { state } from "./state.js";
+
+/* ---------- Context detection (from URL) ---------- */
+
+/** Resolve the current Workspace ID (AppID) from the page URL. */
+export function getWorkspaceId() {
+  // Primary: AppID on the top window (standard Relativity custom-page context)
   try {
-    const json = await apiCall("GET", endpoint());
-    const items = Array.isArray(json.Result) ? json.Result : [];
-    cache[currentTab] = items;
+    const p = new URLSearchParams(window.top.location.search);
+    const id = p.get("AppID");
+    if (id) return id;
+  } catch (e) { /* cross-origin top access blocked; fall through */ }
+
+  // Fallback: query string on this iframe's own URL
+  const p2 = new URLSearchParams(window.location.search);
+  return p2.get("AppID") || p2.get("workspaceId") || p2.get("WorkspaceID") || null;
+}
+
+/** Resolve the Relativity instance origin. */
+export function getHost() {
+  // Prefer the parent Relativity instance origin
+  try {
+    if (window.top && window.top.location && window.top.location.origin) {
+      return window.top.location.origin;
+    }
+  } catch (e) { /* cross-origin blocked */ }
+
+  // Fallback: this document's origin (same instance), or "" for relative URLs
+  return window.location.origin || "";
+}
+
+/**
+ * Resolve context once and store it on shared state.
+ * Returns true when a workspace was found.
+ */
+export function resolveContext() {
+  state.workspaceId = getWorkspaceId();
+  state.host = getHost();
+  return !!state.workspaceId;
+}
+
+/* ---------- URL building ---------- */
+
+/** Base REST URL for the current host + workspace. */
+export function baseUrl() {
+  const host = (state.host || "").replace(/\/+$/, "");
+  return `${host}${API_ROOT}/${API_VERSION}/workspaces/${state.workspaceId}`;
+}
+
+----- END FILE: js/core/context.js -----
+
+----- BEGIN FILE: js/core/state.js -----
+(sha1: 93cb297172e91d8ee0cb580efb55056ae27f1f53)
+
+"use strict";
+
+/* ============================================================
+ * Shared, mutable application state.
+ *
+ * Exported as a single object so that other modules can both
+ * read and mutate it (ES module `let` bindings can't be
+ * reassigned from outside their own module, but object
+ * properties can).
+ * ========================================================== */
+
+export const state = {
+  /** "triggers" | "actions" */
+  currentTab: "triggers",
+
+  /** In-memory cache of the last loaded list per tab. */
+  cache: { triggers: [], actions: [] },
+
+  /** True while the editor modal is editing an existing record. */
+  editingExisting: false,
+
+  /** Resolved once at startup. */
+  workspaceId: null,
+
+  /** Resolved once at startup (may be "" => relative URLs). */
+  host: ""
+};
+
+----- END FILE: js/core/state.js -----
+
+----- BEGIN FILE: js/core/utils.js -----
+(sha1: c466f26f15fda0a81704922be6ec5ef547489e66)
+
+"use strict";
+
+/* ============================================================
+ * Generic, dependency-free helpers.
+ * ========================================================== */
+
+/** Short getElementById helper. */
+export const $ = id => document.getElementById(id);
+
+/** Escape a value for safe insertion into HTML. */
+export function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/** Deep clone via JSON (safe for the plain-data payloads used here). */
+export function clone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+----- END FILE: js/core/utils.js -----
+
+----- BEGIN FILE: js/data/templates.js -----
+(sha1: cc91627b89586ecb9ab41825775916a83aafb840)
+
+"use strict";
+
+/* ============================================================
+ * Starter payloads for new items.
+ * ========================================================== */
+
+export const TRIGGER_TPL = {
+  Group: "Other",
+  Label: "Example Added",
+  ID: "my-company/on-example-added",
+  Version: 1,
+  Inputs: [
+    {
+      Label: "Type(s)", ID: "type", DefaultValue: "", UIElementType: "MultiCheckbox",
+      InputSources: [
+        { Label: "Processing Set", Value: "processing" },
+        { Label: "Integration Points (RIP)", Value: "rip" }
+      ],
+      Properties: {}
+    }
+  ],
+  States: ["complete", "complete-with-errors", "error", "canceled"],
+  SelectableAsInitialTrigger: true
+};
+
+export const ACTION_TPL = {
+  Label: "Send Email",
+  ID: "my-company/send-email",
+  Group: "Notifications",
+  Version: 1,
+  Inputs: [
+    {
+      Label: "Recipient", ID: "recipient-list-id",
+      Placeholder: "Enter email addresses separated by a semicolon (;)", UIElementType: "Email"
+    }
+  ],
+  Steps: [
+    {
+      Type: "RPC",
+      Http: {
+        Url: "@{variables('RelativityInstanceURL')}/MyCompany.REST/API/v1/notification/workspace/@{variables('WorkspaceID')}/email/send",
+        Headers: { "x-csrf-header": "-", "content-type": "application/json" },
+        Body: {
+          body: {
+            WorkflowArtifactId: "@variables('WorkflowArtifactId')",
+            WorkflowRunId: "@workflow().run.id",
+            ActionDefinitionId: "@variables('ActionDefinitionId')",
+            ActionIndex: "@variables('ActionIndex')",
+            SequenceId: "@variables('SequenceId')"
+          }
+        },
+        Method: "Post"
+      },
+      NotifiesCompletion: true
+    }
+  ]
+};
+
+/** Return the correct template for a given tab key. */
+export function templateFor(tabKey) {
+  return tabKey === "triggers" ? TRIGGER_TPL : ACTION_TPL;
+}
+
+----- END FILE: js/data/templates.js -----
+
+----- BEGIN FILE: js/features/list.js -----
+(sha1: 182ebad9a5ba44e40863be5eb8005cf19139ff7f)
+
+"use strict";
+
+/* ============================================================
+ * Loads the current tab's data and drives the grid.
+ *
+ * Bridges the service layer (data) and the UI layer (grid +
+ * status). This is the one place that knows both.
+ * ========================================================== */
+
+import { state } from "../core/state.js";
+import { listEntities } from "../services/entityService.js";
+import { renderGrid } from "../ui/grid.js";
+import { setStatus } from "../ui/status.js";
+
+/** Load the current tab's list from the API into the cache. */
+export async function loadList() {
+  if (!state.workspaceId) return;
+  const tab = state.currentTab;
+  setStatus(`Loading ${tab}…`, "info");
+  try {
+    const items = await listEntities(tab);
+    state.cache[tab] = items;
     renderGrid();
-    setStatus(`Loaded ${items.length} ${currentTab}.`, "ok");
-  } catch (e){
-    cache[currentTab] = [];
+    setStatus(`Loaded ${items.length} ${tab}.`, "ok");
+  } catch (e) {
+    state.cache[tab] = [];
     renderGrid();
-    setStatus(`Failed to load ${currentTab}: ${e.message}`, "err");
+    setStatus(`Failed to load ${tab}: ${e.message}`, "err");
   }
 }
 
-/* ---------- Filtering ---------- */
-function filteredItems(){
+----- END FILE: js/features/list.js -----
+
+----- BEGIN FILE: js/services/entityService.js -----
+(sha1: 3b222375f1276282cd4fb1a415d96ba2241f4319)
+
+"use strict";
+
+/* ============================================================
+ * Business logic for reading/writing triggers & actions.
+ *
+ * These functions know how to talk to the API for a given
+ * entity type. They know nothing about buttons, modals, or
+ * tables — the UI layer calls into here.
+ * ========================================================== */
+
+import { apiCall } from "../core/api.js";
+import { ENTITY } from "../config/settings.js";
+
+/** Fetch the full list for an entity type. Returns an array. */
+export async function listEntities(tabKey) {
+  const json = await apiCall("GET", ENTITY[tabKey].path);
+  return Array.isArray(json.Result) ? json.Result : [];
+}
+
+/** Create or update a record. Returns the raw API response. */
+export async function saveEntity(tabKey, body) {
+  return apiCall("PUT", ENTITY[tabKey].path, { body });
+}
+
+/** Delete a record. Returns the raw API response. */
+export async function deleteEntity(tabKey, item) {
+  const body = tabKey === "triggers"
+    ? { triggerID: item.ID, triggerVersion: item.Version }
+    : { actionID: item.ID, actionVersion: item.Version };
+  return apiCall("DELETE", ENTITY[tabKey].path, body);
+}
+
+----- END FILE: js/services/entityService.js -----
+
+----- BEGIN FILE: js/ui/editor.js -----
+(sha1: 5ab646c4135f7f2935e970d2cebf40dc562006cd)
+
+"use strict";
+
+/* ============================================================
+ * Editor modal: open/close, field<->JSON sync, save, delete.
+ *
+ * Talks to the service layer for persistence and to the list
+ * feature to refresh after a change.
+ * ========================================================== */
+
+import { $, clone } from "../core/utils.js";
+import { state } from "../core/state.js";
+import { ENTITY } from "../config/settings.js";
+import { messagesFrom } from "../core/api.js";
+import { saveEntity, deleteEntity } from "../services/entityService.js";
+import { templateFor, TRIGGER_TPL, ACTION_TPL } from "../data/templates.js";
+import { setStatus } from "./status.js";
+import { loadList } from "../features/list.js";
+
+/* ---------- Open / close ---------- */
+export function openEditor(existingItem) {
+  state.editingExisting = !!existingItem;
+  const ent = ENTITY[state.currentTab];
+
+  $("modalTitle").textContent =
+    (state.editingExisting ? "Edit " : "New ") + ent.singular;
+
+  const data = existingItem
+    ? clone(existingItem)
+    : clone(templateFor(state.currentTab));
+
+  $("fLabel").value   = data.Label || "";
+  $("fId").value      = data.ID || "";
+  $("fGroup").value   = data.Group || "";
+  $("fVersion").value = data.Version != null ? data.Version : 1;
+  $("fId").readOnly   = state.editingExisting; // ID + version identify the record; keep stable when editing
+  $("fJson").value    = JSON.stringify(data, null, 2);
+
+  $("overlay").classList.add("show");
+}
+
+export function closeEditor() {
+  $("overlay").classList.remove("show");
+}
+
+/* ---------- Sync the quick-fill fields into the JSON body ---------- */
+export function applyFieldsToJson() {
+  let obj;
+  try { obj = JSON.parse($("fJson").value || "{}"); }
+  catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return null; }
+
+  obj.Label   = $("fLabel").value.trim();
+  obj.ID      = $("fId").value.trim();
+  obj.Group   = $("fGroup").value.trim();
+  obj.Version = Number($("fVersion").value) || 1;
+  $("fJson").value = JSON.stringify(obj, null, 2);
+  return obj;
+}
+
+/* ---------- Format the JSON textarea ---------- */
+export function formatJson() {
+  try { $("fJson").value = JSON.stringify(JSON.parse($("fJson").value), null, 2); }
+  catch (e) { setStatus("Invalid JSON: " + e.message, "err"); }
+}
+
+/* ---------- Insert the starter template ---------- */
+export function loadTemplate() {
+  const tpl = templateFor(state.currentTab);
+  $("fJson").value  = JSON.stringify(tpl, null, 2);
+  $("fLabel").value = tpl.Label;
+  $("fId").value    = tpl.ID;
+  $("fGroup").value = tpl.Group || "";
+  $("fVersion").value = tpl.Version;
+}
+
+/* ---------- Save (create or update) ---------- */
+export async function saveItem() {
+  const obj = applyFieldsToJson();
+  if (!obj) return;
+  if (!obj.ID) { setStatus("An ID is required.", "err"); return; }
+
+  setStatus("Saving…", "info");
+  try {
+    const json = await saveEntity(state.currentTab, obj);
+    if (json.Success === false) {
+      setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
+      return;
+    }
+    setStatus(messagesFrom(json) || "Saved.", "ok");
+    closeEditor();
+    await loadList();
+  } catch (e) {
+    setStatus("Save failed: " + e.message, "err");
+  }
+}
+
+/* ---------- Delete ---------- */
+export async function deleteItem(item) {
+  const ent = ENTITY[state.currentTab];
+  const ok = confirm(
+    `Delete ${ent.lowerSingular} "${item.ID}" (v${item.Version})?\n\n` +
+    `Note: it will NOT be deleted if it is used by a workflow.`);
+  if (!ok) return;
+
+  setStatus("Deleting…", "info");
+  try {
+    const json = await deleteEntity(state.currentTab, item);
+    if (json.Success === false) {
+      setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
+      return;
+    }
+    setStatus(messagesFrom(json) || "Deleted.", "ok");
+    await loadList();
+  } catch (e) {
+    setStatus("Delete failed: " + e.message, "err");
+  }
+}
+
+/* Re-export templates so callers that only import the editor
+   still have access if needed. */
+export { TRIGGER_TPL, ACTION_TPL };
+
+----- END FILE: js/ui/editor.js -----
+
+----- BEGIN FILE: js/ui/grid.js -----
+(sha1: aa56f7ba964d57381107e02ecb13c7bfb07a9b10)
+
+"use strict";
+
+/* ============================================================
+ * Table rendering + client-side filtering.
+ * ========================================================== */
+
+import { $, esc } from "../core/utils.js";
+import { state } from "../core/state.js";
+
+/** Items for the current tab, filtered by the search box. */
+export function filteredItems() {
   const term = $("search").value.trim().toLowerCase();
-  let items = cache[currentTab] || [];
-  if (term){
+  let items = state.cache[state.currentTab] || [];
+  if (term) {
     items = items.filter(it =>
       [it.Label, it.ID, it.Group].filter(Boolean)
         .some(v => String(v).toLowerCase().includes(term)));
   }
   return items;
 }
-// Alias kept for clarity where row indices are resolved
-function visibleItems(){ return filteredItems(); }
 
-/* ---------- Render ---------- */
-function renderGrid(){
+/** Alias kept for clarity where row indices are resolved. */
+export function visibleItems() {
+  return filteredItems();
+}
+
+/** Render the grid body from the current cache + filter. */
+export function renderGrid() {
   const grid = $("grid");
   const items = filteredItems();
-  if (!items.length){
-    grid.innerHTML = `<tr><td colspan="5" class="empty">No ${currentTab} found.</td></tr>`;
+
+  if (!items.length) {
+    grid.innerHTML = `<tr><td colspan="5" class="empty">No ${state.currentTab} found.</td></tr>`;
     return;
   }
+
   grid.innerHTML = items.map((it, i) => {
     const label = esc(it.Label || "(no label)");
     const id    = esc(it.ID || "");
@@ -344,241 +794,79 @@ function renderGrid(){
   }).join("");
 }
 
-/* ---------- Tabs ---------- */
-function switchTab(tab){
-  currentTab = tab;
-  document.querySelectorAll(".tab").forEach(t =>
-    t.classList.toggle("active", t.dataset.tab === tab));
-  document.querySelectorAll(".entlabel").forEach(e =>
-    e.textContent = tab === "triggers" ? "Trigger" : "Action");
-  $("search").value = "";
-  renderGrid();
-  if (WORKSPACE_ID && !(cache[tab] || []).length) loadList();
-}
+----- END FILE: js/ui/grid.js -----
 
------ END FILE: list.js -----
-
------ BEGIN FILE: main.js -----
-(sha1: b3938a446f4f7c8c8e6e3bd3483e0dec3b68c94e)
+----- BEGIN FILE: js/ui/status.js -----
+(sha1: a86137d14f661d6b6140b694751357cf79319239)
 
 "use strict";
 
-/* ---------- Startup ---------- */
-function initContext(){
-  WORKSPACE_ID = getWorkspaceId();
-  HOST = getHost();
-  const info = $("connInfo");
+/* ============================================================
+ * Status banner rendering.
+ * ========================================================== */
 
-  if (!WORKSPACE_ID){
-    info.className = "conn-info err";
-    info.textContent = "Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.";
-    $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
-    $("newBtn").disabled = true;
-    $("refreshBtn").disabled = true;
-    return false;
-  }
+import { $ } from "../core/utils.js";
 
-  info.className = "conn-info";
-  const hostLabel = HOST || "current instance";
-  info.innerHTML =
-    `Connected to <span class="badge">${esc(hostLabel)}</span>` +
-    ` · Workspace <span class="badge">${esc(WORKSPACE_ID)}</span>` +
-    ` · API <span class="badge">${API_VERSION}</span>`;
-  return true;
-}
-
-/* ---------- Event wiring ---------- */
-document.addEventListener("DOMContentLoaded", () => {
-  const ready = initContext();
-
-  $("refreshBtn").onclick = loadList;
-  $("search").oninput = renderGrid;
-
-  document.querySelectorAll(".tab").forEach(t =>
-    t.onclick = () => switchTab(t.dataset.tab));
-
-  $("newBtn").onclick = () => { if (WORKSPACE_ID) openEditor(null); };
-
-  $("grid").addEventListener("click", e => {
-    const btn = e.target.closest("button[data-act]");
-    if (!btn) return;
-    const item = visibleItems()[Number(btn.dataset.i)];
-    if (!item) return;
-    if (btn.dataset.act === "edit") openEditor(item);
-    else deleteItem(item);
-  });
-
-  // modal buttons
-  $("modalClose").onclick = closeEditor;
-  $("modalCancel").onclick = closeEditor;
-  $("saveBtn").onclick = saveItem;
-  $("syncFields").onclick = applyFieldsToJson;
-  $("formatJson").onclick = () => {
-    try { $("fJson").value = JSON.stringify(JSON.parse($("fJson").value), null, 2); }
-    catch(e){ setStatus("Invalid JSON: " + e.message, "err"); }
-  };
-  $("loadTpl").onclick = () => {
-    const tpl = currentTab === "triggers" ? TRIGGER_TPL : ACTION_TPL;
-    $("fJson").value = JSON.stringify(tpl, null, 2);
-    $("fLabel").value = tpl.Label; $("fId").value = tpl.ID;
-    $("fGroup").value = tpl.Group || ""; $("fVersion").value = tpl.Version;
-  };
-  $("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeEditor(); });
-
-  // Auto-load once context is known
-  if (ready) loadList();
-});
------ END FILE: main.js -----
-
------ BEGIN FILE: styles.css -----
-(sha1: 00f5271cbd432699c424942281c8fa43b51595a5)
-
-:root{
-  --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
-  --muted:#6b7684; --accent:#0a6ed1; --accent-dk:#084f96;
-  --danger:#c0392b; --danger-dk:#96271a; --ok:#2e7d32; --warn:#b26a00;
-  --shadow:0 1px 3px rgba(0,0,0,.12);
-}
-*{box-sizing:border-box}
-body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
-header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
-h1{font-size:18px;margin:0 0 4px}
-.conn-info{font-size:12px;color:var(--muted)}
-.conn-info .badge{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;
-  padding:1px 9px;margin-left:4px;font-family:Consolas,"Courier New",monospace;color:var(--text)}
-.conn-info.err{color:var(--danger)}
-input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
-  border-radius:4px;padding:6px 8px}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
-button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:7px 14px;background:#eef1f5;color:var(--text)}
-button:hover{background:#e2e7ee}
-button.primary{background:var(--accent);color:#fff}
-button.primary:hover{background:var(--accent-dk)}
-button.danger{background:var(--danger);color:#fff}
-button.danger:hover{background:var(--danger-dk)}
-button.ghost{background:transparent;border-color:var(--border)}
-button.sm{padding:4px 9px;font-size:12px}
-button:disabled{opacity:.5;cursor:not-allowed}
-main{padding:16px}
-.tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
-.tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
-  background:transparent;color:var(--muted);font-weight:600}
-.tab.active{background:var(--panel);color:var(--accent);border-color:var(--border);margin-bottom:-1px}
-.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
-.toolbar .spacer{flex:1}
-.toolbar .search{width:240px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
-table{width:100%;border-collapse:collapse}
-th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
-th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
-tr:last-child td{border-bottom:none}
-tr:hover td{background:#f7f9fb}
-.mono{font-family:Consolas,"Courier New",monospace;font-size:12.5px}
-.pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
-.rowbtns{display:flex;gap:6px;white-space:nowrap}
-.empty{padding:26px;text-align:center;color:var(--muted)}
-.status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
-.status.show{display:block}
-.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
-.status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
-.status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
-/* modal */
-.overlay{position:fixed;inset:0;background:rgba(15,23,35,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
-.overlay.show{display:flex}
-.modal{background:var(--panel);border-radius:8px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
-.modal h2{margin:0;font-size:16px}
-.modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
-.modal .body{padding:18px;overflow:auto}
-.modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
-.grid .field{display:flex;flex-direction:column;gap:3px}
-.grid label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
-.jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
-textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
-.hint{font-size:12px;color:var(--muted);margin-top:6px}
-.tplbtns{display:flex;gap:6px}
-.close{background:transparent;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)}
-.close:hover{color:var(--text)}
------ END FILE: styles.css -----
-
------ BEGIN FILE: templates.js -----
-(sha1: 098cde5c132d1e5377788ae144b70fcef138e443)
-
-"use strict";
-
-/* ---------- Starter payloads for new items ---------- */
-const TRIGGER_TPL = {
-  Group: "Other",
-  Label: "Example Added",
-  ID: "my-company/on-example-added",
-  Version: 1,
-  Inputs: [
-    { Label: "Type(s)", ID: "type", DefaultValue: "", UIElementType: "MultiCheckbox",
-      InputSources: [
-        { Label: "Processing Set", Value: "processing" },
-        { Label: "Integration Points (RIP)", Value: "rip" }
-      ], Properties: {} }
-  ],
-  States: ["complete", "complete-with-errors", "error", "canceled"],
-  SelectableAsInitialTrigger: true
-};
-
-const ACTION_TPL = {
-  Label: "Send Email",
-  ID: "my-company/send-email",
-  Group: "Notifications",
-  Version: 1,
-  Inputs: [
-    { Label: "Recipient", ID: "recipient-list-id",
-      Placeholder: "Enter email addresses separated by a semicolon (;)", UIElementType: "Email" }
-  ],
-  Steps: [
-    { Type: "RPC",
-      Http: {
-        Url: "@{variables('RelativityInstanceURL')}/MyCompany.REST/API/v1/notification/workspace/@{variables('WorkspaceID')}/email/send",
-        Headers: { "x-csrf-header": "-", "content-type": "application/json" },
-        Body: { body: {
-          WorkflowArtifactId: "@variables('WorkflowArtifactId')",
-          WorkflowRunId: "@workflow().run.id",
-          ActionDefinitionId: "@variables('ActionDefinitionId')",
-          ActionIndex: "@variables('ActionIndex')",
-          SequenceId: "@variables('SequenceId')"
-        }},
-        Method: "Post"
-      },
-      NotifiesCompletion: true }
-  ]
-};
------ END FILE: templates.js -----
-
------ BEGIN FILE: util.js -----
-(sha1: 64e01a8fa003edaa7d51dd2db3d3b6ea49dd5441)
-
-"use strict";
-
-/* ---------- Status banner ---------- */
-function setStatus(msg, type){
+/** Show a message in the status banner. type: "ok" | "err" | "info". */
+export function setStatus(msg, type) {
   const el = $("status");
   el.textContent = msg;
   el.className = "status show " + (type || "info");
 }
-function clearStatus(){ $("status").className = "status"; }
 
-/* ---------- HTML escape ---------- */
-function esc(s){
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+/** Hide the status banner. */
+export function clearStatus() {
+  $("status").className = "status";
 }
 
------ END FILE: util.js -----
+----- END FILE: js/ui/status.js -----
+
+----- BEGIN FILE: js/ui/tabs.js -----
+(sha1: 872b4bc0cff680e0346db2a37268c68f6265d45c)
+
+"use strict";
+
+/* ============================================================
+ * Tab switching between Triggers and Actions.
+ * ========================================================== */
+
+import { $ } from "../core/utils.js";
+import { state } from "../core/state.js";
+import { ENTITY } from "../config/settings.js";
+import { renderGrid } from "./grid.js";
+import { loadList } from "../features/list.js";
+
+/** Switch the active tab, refresh labels, and load if needed. */
+export function switchTab(tab) {
+  state.currentTab = tab;
+
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.tab === tab));
+
+  document.querySelectorAll(".entlabel").forEach(e =>
+    e.textContent = ENTITY[tab].singular);
+
+  $("search").value = "";
+  renderGrid();
+
+  if (state.workspaceId && !(state.cache[tab] || []).length) loadList();
+}
+
+----- END FILE: js/ui/tabs.js -----
 
 ## Included files
-api.js
-config.js
-editor.js
+css/styles.css
 index.html
-list.js
-main.js
-styles.css
-templates.js
-util.js
+js/app.js
+js/config/settings.js
+js/core/api.js
+js/core/context.js
+js/core/state.js
+js/core/utils.js
+js/data/templates.js
+js/features/list.js
+js/services/entityService.js
+js/ui/editor.js
+js/ui/grid.js
+js/ui/status.js
+js/ui/tabs.js

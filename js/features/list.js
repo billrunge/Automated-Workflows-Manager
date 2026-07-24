@@ -1,18 +1,12 @@
 "use strict";
 
-/* ============================================================
- * Loads the current tab's data and drives the grid.
- *
- * Bridges the service layer (data) and the UI layer (grid +
- * status). This is the one place that knows both.
- * ========================================================== */
+/* Loads the current tab's data and drives the grid. */
 
 import { state } from "../core/state.js";
 import { listEntities } from "../services/entityService.js";
 import { renderGrid } from "../ui/grid.js";
 import { setStatus } from "../ui/status.js";
 
-/** Load the current tab's list from the API into the cache. */
 export async function loadList() {
   if (!state.workspaceId) return;
   const tab = state.currentTab;

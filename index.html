@@ -56,25 +56,46 @@
         <button class="close" id="modalClose">&times;</button>
       </div>
       <div class="body">
-        <div class="grid">
+        <!-- Quick fields (Form view only) -->
+        <div class="grid" id="quickGrid">
           <div class="field"><label>Label</label><input id="fLabel" /></div>
           <div class="field"><label>ID (unique key)</label><input id="fId" class="mono"
               placeholder="my-company/on-example" /></div>
           <div class="field"><label>Group</label><input id="fGroup" placeholder="Other" /></div>
           <div class="field"><label>Version</label><input id="fVersion" type="number" value="1" min="1" /></div>
         </div>
+
         <div class="jsonlabel">
-          <strong>Body JSON</strong>
+          <div class="viewtoggle">
+            <button class="sm primary" id="viewForm" type="button">Form</button>
+            <button class="sm ghost" id="viewJson" type="button">JSON</button>
+          </div>
           <div class="tplbtns">
-            <button class="sm ghost" id="syncFields" title="Copy the four fields above into the JSON">Apply fields
-              ↴</button>
-            <button class="sm ghost" id="loadTpl">Insert template</button>
-            <button class="sm ghost" id="formatJson">Format</button>
+            <button class="sm ghost" id="loadTpl" type="button">Insert template</button>
+            <button class="sm ghost" id="formatJson" type="button" style="display:none">Format JSON</button>
           </div>
         </div>
-        <textarea id="fJson" class="json" spellcheck="false"></textarea>
-        <div class="hint">This is sent as the <span class="mono">body</span> object of the PUT payload. Edit nested
-          Inputs / Steps / States here. “Apply fields” writes the four fields above into the JSON.</div>
+
+        <!-- Type-aware Input picker (Form view only) -->
+        <div class="inputadder" id="inputAdder">
+          <label for="inputType">Add Input</label>
+          <select id="inputType" class="inputtype" title="Choose a UIElementType to scaffold"></select>
+          <button class="sm ghost" id="addInput" type="button">+ Add Input</button>
+          <span class="adderhint">Scaffolds the right sub-fields for the chosen UIElementType, then edit below.</span>
+        </div>
+
+        <!-- Form view: recursive field editor -->
+        <div id="treeWrap" class="tree"></div>
+
+        <!-- JSON view: raw escape hatch -->
+        <textarea id="fJson" class="json" spellcheck="false" style="display:none"></textarea>
+
+        <div class="hint">
+          <strong>Form</strong> lets you edit every field, including nested Inputs / Steps / States, with add,
+          remove, rename, and per-field type controls. Use <strong>Add Input</strong> to scaffold a typed input
+          (Dropdown, MultiCheckbox, Switch, etc.). <strong>JSON</strong> is the raw escape hatch for large
+          free-form edits. The two views stay in sync when you switch.
+        </div>
       </div>
       <div class="foot">
         <button class="ghost" id="modalCancel">Cancel</button>

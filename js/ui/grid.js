@@ -1,13 +1,10 @@
 "use strict";
 
-/* ============================================================
- * Table rendering + client-side filtering.
- * ========================================================== */
+/* Table rendering + client-side filtering. */
 
 import { $, esc } from "../core/utils.js";
 import { state } from "../core/state.js";
 
-/** Items for the current tab, filtered by the search box. */
 export function filteredItems() {
   const term = $("search").value.trim().toLowerCase();
   let items = state.cache[state.currentTab] || [];
@@ -19,12 +16,10 @@ export function filteredItems() {
   return items;
 }
 
-/** Alias kept for clarity where row indices are resolved. */
 export function visibleItems() {
   return filteredItems();
 }
 
-/** Render the grid body from the current cache + filter. */
 export function renderGrid() {
   const grid = $("grid");
   const items = filteredItems();

@@ -1,8 +1,6 @@
 "use strict";
 
-/* ============================================================
- * Starter payloads for new items.
- * ========================================================== */
+/* Starter payloads for new items. */
 
 export const TRIGGER_TPL = {
   Group: "Other",
@@ -56,7 +54,6 @@ export const ACTION_TPL = {
   ]
 };
 
-/** Return the correct template for a given tab key. */
 export function templateFor(tabKey) {
   return tabKey === "triggers" ? TRIGGER_TPL : ACTION_TPL;
 }

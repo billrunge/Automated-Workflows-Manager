@@ -1,30 +1,24 @@
 "use strict";
 
 /* ============================================================
- * Application entry point.
- *
- * Loaded as a module (deferred), so the DOM is already parsed
- * when this runs. Responsible for: resolving context, wiring
- * events, and kicking off the first load.
+ * Application entry point (loaded as a module, so deferred).
+ * Resolves context, wires events, kicks off the first load.
  * ========================================================== */
 
 import { $ } from "./core/utils.js";
 import { state } from "./core/state.js";
 import { resolveContext } from "./core/context.js";
-import { renderGrid } from "./ui/grid.js";
-import { visibleItems } from "./ui/grid.js";
+import { renderGrid, visibleItems } from "./ui/grid.js";
 import { switchTab } from "./ui/tabs.js";
 import { loadList } from "./features/list.js";
 import { setStatus } from "./ui/status.js";
 import {
   openEditor, closeEditor, saveItem, deleteItem,
-  applyFieldsToJson, formatJson, loadTemplate
+  setView, formatJson, loadTemplate
 } from "./ui/editor.js";
 
-/* ---------- Startup ---------- */
 function initContext() {
   const ready = resolveContext();
-
   if (!ready) {
     setStatus("Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.", "err");
     $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
@@ -32,11 +26,9 @@ function initContext() {
     $("refreshBtn").disabled = true;
     return false;
   }
-
   return true;
 }
 
-/* ---------- Event wiring ---------- */
 function wireEvents() {
   $("refreshBtn").onclick = loadList;
   $("search").oninput = renderGrid;
@@ -55,11 +47,11 @@ function wireEvents() {
     else deleteItem(item);
   });
 
-  // modal buttons
   $("modalClose").onclick  = closeEditor;
   $("modalCancel").onclick = closeEditor;
   $("saveBtn").onclick     = saveItem;
-  $("syncFields").onclick  = applyFieldsToJson;
+  $("viewForm").onclick    = () => setView("form");
+  $("viewJson").onclick    = () => setView("json");
   $("formatJson").onclick  = formatJson;
   $("loadTpl").onclick     = loadTemplate;
 
@@ -68,7 +60,6 @@ function wireEvents() {
   });
 }
 
-/* ---------- Boot ---------- */
 function main() {
   const ready = initContext();
   wireEvents();

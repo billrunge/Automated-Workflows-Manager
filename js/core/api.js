@@ -1,15 +1,9 @@
 "use strict";
 
-/* ============================================================
- * Core REST transport.
- *
- * A single fetch wrapper plus a helper for extracting the
- * various message shapes the API can return. No UI, no state.
- * ========================================================== */
+/* Core REST transport. */
 
 import { baseUrl } from "./context.js";
 
-/* ---------- Core fetch ---------- */
 export async function apiCall(method, path, bodyObj) {
   const opts = {
     method,
@@ -34,7 +28,6 @@ export async function apiCall(method, path, bodyObj) {
   return json;
 }
 
-/* API returns either "Message" (string) or "Messages" (array). */
 export function messagesFrom(json) {
   if (!json) return "";
   if (Array.isArray(json.Messages) && json.Messages.length) return json.Messages.join(" | ");

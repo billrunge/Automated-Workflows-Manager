@@ -4,19 +4,18 @@
  * Application entry point.
  *
  * Loaded as a module (deferred), so the DOM is already parsed
- * when this runs. Responsible for: resolving context, painting
- * the connection banner, wiring events, and kicking off the
- * first load.
+ * when this runs. Responsible for: resolving context, wiring
+ * events, and kicking off the first load.
  * ========================================================== */
 
-import { $, esc } from "./core/utils.js";
+import { $ } from "./core/utils.js";
 import { state } from "./core/state.js";
-import { API_VERSION } from "./config/settings.js";
 import { resolveContext } from "./core/context.js";
 import { renderGrid } from "./ui/grid.js";
 import { visibleItems } from "./ui/grid.js";
 import { switchTab } from "./ui/tabs.js";
 import { loadList } from "./features/list.js";
+import { setStatus } from "./ui/status.js";
 import {
   openEditor, closeEditor, saveItem, deleteItem,
   applyFieldsToJson, formatJson, loadTemplate
@@ -25,23 +24,15 @@ import {
 /* ---------- Startup ---------- */
 function initContext() {
   const ready = resolveContext();
-  const info = $("connInfo");
 
   if (!ready) {
-    info.className = "conn-info err";
-    info.textContent = "Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.";
+    setStatus("Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.", "err");
     $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
     $("newBtn").disabled = true;
     $("refreshBtn").disabled = true;
     return false;
   }
 
-  info.className = "conn-info";
-  const hostLabel = state.host || "current instance";
-  info.innerHTML =
-    `Connected to <span class="badge">${esc(hostLabel)}</span>` +
-    ` · Workspace <span class="badge">${esc(state.workspaceId)}</span>` +
-    ` · API <span class="badge">${API_VERSION}</span>`;
   return true;
 }
 

@@ -1,9 +1,9 @@
 # Project Snapshot
-Generated: 2026-07-24T16:36:41Z
-Commit: 1adb015
+Generated: 2026-07-24T19:12:49Z
+Commit: 6e452d5
 
 ----- BEGIN FILE: css/styles.css -----
-(sha1: 00f5271cbd432699c424942281c8fa43b51595a5)
+(sha1: a9ccf0cc560564783efb147bc66b56daf05348a7)
 
 :root{
   --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
@@ -15,10 +15,6 @@ Commit: 1adb015
 body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
 header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
 h1{font-size:18px;margin:0 0 4px}
-.conn-info{font-size:12px;color:var(--muted)}
-.conn-info .badge{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;
-  padding:1px 9px;margin-left:4px;font-family:Consolas,"Courier New",monospace;color:var(--text)}
-.conn-info.err{color:var(--danger)}
 input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
   border-radius:4px;padding:6px 8px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
@@ -71,10 +67,43 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 .tplbtns{display:flex;gap:6px}
 .close{background:transparent;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)}
 .close:hover{color:var(--text)}
+
+/* ---------- view toggle ---------- */
+.viewtoggle{display:flex;gap:4px}
+
+/* ---------- type-aware Input picker ---------- */
+.inputadder{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:8px;
+  background:#f7f9fb;border:1px solid var(--border);border-radius:6px}
+.inputadder label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.inputadder .inputtype{padding:5px 8px;min-width:150px}
+.inputadder .adderhint{font-size:12px;color:var(--muted);flex:1}
+
+/* ---------- recursive tree editor ---------- */
+.tree{border:1px solid var(--border);border-radius:6px;padding:8px;max-height:340px;overflow:auto;background:#fff}
+.tnode{margin:2px 0}
+.trow{display:flex;align-items:center;gap:6px}
+.tkids{margin-left:14px;padding-left:10px;border-left:1px dashed var(--border)}
+.tkey{width:180px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;padding:4px 6px}
+.tindex{width:180px;color:var(--muted);font-family:Consolas,"Courier New",monospace;font-size:12.5px}
+.ttype{padding:3px 6px;font-size:12px;color:var(--muted)}
+.tval{flex:1;min-width:120px;padding:4px 6px}
+.tnull{flex:1;color:var(--muted);font-style:italic}
+.tsummary{flex:1;color:var(--muted);font-size:12px}
+.tcheck{width:16px;height:16px;flex:0 0 auto}
+.tspacer{display:inline-block;width:22px;flex:0 0 auto}
+.tbtn{padding:2px 8px;font-size:12px;border:1px solid var(--border);background:#f3f5f8;border-radius:4px}
+.tbtn:hover{background:#e7ecf2}
+.ttoggle{width:22px;padding:2px 0;text-align:center;flex:0 0 auto}
+.tdel{color:var(--danger);border-color:#f0c1b9;flex:0 0 auto}
+.tdel:hover{background:#fbeae7}
+.tadd{color:var(--accent);border-color:#bcd8f5;flex:0 0 auto}
+.tadd:hover{background:#eaf3fc}
+.troot{margin-top:8px}
+
 ----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: d5d7eadadb71dfc86f0313493644b27390991614)
+(sha1: 7a7f6aa5a25daafe779eeb931b1f1ec193abd650)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -134,25 +163,46 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
         <button class="close" id="modalClose">&times;</button>
       </div>
       <div class="body">
-        <div class="grid">
+        <!-- Quick fields (Form view only) -->
+        <div class="grid" id="quickGrid">
           <div class="field"><label>Label</label><input id="fLabel" /></div>
           <div class="field"><label>ID (unique key)</label><input id="fId" class="mono"
               placeholder="my-company/on-example" /></div>
           <div class="field"><label>Group</label><input id="fGroup" placeholder="Other" /></div>
           <div class="field"><label>Version</label><input id="fVersion" type="number" value="1" min="1" /></div>
         </div>
+
         <div class="jsonlabel">
-          <strong>Body JSON</strong>
+          <div class="viewtoggle">
+            <button class="sm primary" id="viewForm" type="button">Form</button>
+            <button class="sm ghost" id="viewJson" type="button">JSON</button>
+          </div>
           <div class="tplbtns">
-            <button class="sm ghost" id="syncFields" title="Copy the four fields above into the JSON">Apply fields
-              ↴</button>
-            <button class="sm ghost" id="loadTpl">Insert template</button>
-            <button class="sm ghost" id="formatJson">Format</button>
+            <button class="sm ghost" id="loadTpl" type="button">Insert template</button>
+            <button class="sm ghost" id="formatJson" type="button" style="display:none">Format JSON</button>
           </div>
         </div>
-        <textarea id="fJson" class="json" spellcheck="false"></textarea>
-        <div class="hint">This is sent as the <span class="mono">body</span> object of the PUT payload. Edit nested
-          Inputs / Steps / States here. “Apply fields” writes the four fields above into the JSON.</div>
+
+        <!-- Type-aware Input picker (Form view only) -->
+        <div class="inputadder" id="inputAdder">
+          <label for="inputType">Add Input</label>
+          <select id="inputType" class="inputtype" title="Choose a UIElementType to scaffold"></select>
+          <button class="sm ghost" id="addInput" type="button">+ Add Input</button>
+          <span class="adderhint">Scaffolds the right sub-fields for the chosen UIElementType, then edit below.</span>
+        </div>
+
+        <!-- Form view: recursive field editor -->
+        <div id="treeWrap" class="tree"></div>
+
+        <!-- JSON view: raw escape hatch -->
+        <textarea id="fJson" class="json" spellcheck="false" style="display:none"></textarea>
+
+        <div class="hint">
+          <strong>Form</strong> lets you edit every field, including nested Inputs / Steps / States, with add,
+          remove, rename, and per-field type controls. Use <strong>Add Input</strong> to scaffold a typed input
+          (Dropdown, MultiCheckbox, Switch, etc.). <strong>JSON</strong> is the raw escape hatch for large
+          free-form edits. The two views stay in sync when you switch.
+        </div>
       </div>
       <div class="foot">
         <button class="ghost" id="modalCancel">Cancel</button>
@@ -170,35 +220,29 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 ----- END FILE: index.html -----
 
 ----- BEGIN FILE: js/app.js -----
-(sha1: f791f59b73fbb40e572465a54dadac40d1c7901c)
+(sha1: 80ad42d90b2dd29a86eaedd197e320b3b5634c67)
 
 "use strict";
 
 /* ============================================================
- * Application entry point.
- *
- * Loaded as a module (deferred), so the DOM is already parsed
- * when this runs. Responsible for: resolving context, wiring
- * events, and kicking off the first load.
+ * Application entry point (loaded as a module, so deferred).
+ * Resolves context, wires events, kicks off the first load.
  * ========================================================== */
 
 import { $ } from "./core/utils.js";
 import { state } from "./core/state.js";
 import { resolveContext } from "./core/context.js";
-import { renderGrid } from "./ui/grid.js";
-import { visibleItems } from "./ui/grid.js";
+import { renderGrid, visibleItems } from "./ui/grid.js";
 import { switchTab } from "./ui/tabs.js";
 import { loadList } from "./features/list.js";
 import { setStatus } from "./ui/status.js";
 import {
   openEditor, closeEditor, saveItem, deleteItem,
-  applyFieldsToJson, formatJson, loadTemplate
+  setView, formatJson, loadTemplate
 } from "./ui/editor.js";
 
-/* ---------- Startup ---------- */
 function initContext() {
   const ready = resolveContext();
-
   if (!ready) {
     setStatus("Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.", "err");
     $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
@@ -206,11 +250,9 @@ function initContext() {
     $("refreshBtn").disabled = true;
     return false;
   }
-
   return true;
 }
 
-/* ---------- Event wiring ---------- */
 function wireEvents() {
   $("refreshBtn").onclick = loadList;
   $("search").oninput = renderGrid;
@@ -229,11 +271,11 @@ function wireEvents() {
     else deleteItem(item);
   });
 
-  // modal buttons
   $("modalClose").onclick  = closeEditor;
   $("modalCancel").onclick = closeEditor;
   $("saveBtn").onclick     = saveItem;
-  $("syncFields").onclick  = applyFieldsToJson;
+  $("viewForm").onclick    = () => setView("form");
+  $("viewJson").onclick    = () => setView("json");
   $("formatJson").onclick  = formatJson;
   $("loadTpl").onclick     = loadTemplate;
 
@@ -242,7 +284,6 @@ function wireEvents() {
   });
 }
 
-/* ---------- Boot ---------- */
 function main() {
   const ready = initContext();
   wireEvents();
@@ -254,21 +295,18 @@ main();
 ----- END FILE: js/app.js -----
 
 ----- BEGIN FILE: js/config/settings.js -----
-(sha1: d8cf8b7a5def5f73a07d484a85f3e9d8d8009be4)
+(sha1: bf617cf1752d87be31d1e0f01bbfa773c66a1b24)
 
 "use strict";
 
 /* ============================================================
  * Fixed application configuration.
- * Values here do not change at runtime.
  * ========================================================== */
 
 export const API_VERSION = "v2";
 
-/* The REST route template. {host} and {workspaceId} are filled at runtime. */
 export const API_ROOT = "/Relativity.REST/api/relativity-automated-workflows";
 
-/* The two entity types the app manages. */
 export const ENTITY = {
   triggers: {
     key: "triggers",
@@ -287,20 +325,14 @@ export const ENTITY = {
 ----- END FILE: js/config/settings.js -----
 
 ----- BEGIN FILE: js/core/api.js -----
-(sha1: 1c00ebc7e2ef4cf09636404124b065b7e6c171f5)
+(sha1: aef3ab02618a882d0f8963a9f9609c4f759c1dfc)
 
 "use strict";
 
-/* ============================================================
- * Core REST transport.
- *
- * A single fetch wrapper plus a helper for extracting the
- * various message shapes the API can return. No UI, no state.
- * ========================================================== */
+/* Core REST transport. */
 
 import { baseUrl } from "./context.js";
 
-/* ---------- Core fetch ---------- */
 export async function apiCall(method, path, bodyObj) {
   const opts = {
     method,
@@ -325,7 +357,6 @@ export async function apiCall(method, path, bodyObj) {
   return json;
 }
 
-/* API returns either "Message" (string) or "Messages" (array). */
 export function messagesFrom(json) {
   if (!json) return "";
   if (Array.isArray(json.Messages) && json.Messages.length) return json.Messages.join(" | ");
@@ -338,63 +369,41 @@ export function messagesFrom(json) {
 ----- END FILE: js/core/api.js -----
 
 ----- BEGIN FILE: js/core/context.js -----
-(sha1: cf40c77a60ceb1828c34c0ed2d90dea837d66a56)
+(sha1: bd03d3a7a5056a4cd48f2bc93469eee86cd3c295)
 
 "use strict";
 
-/* ============================================================
- * Relativity platform context detection + URL building.
- *
- * Responsible only for figuring out WHERE we are (workspace,
- * host) and how to build a REST base URL. Knows nothing about
- * the DOM or the UI.
- * ========================================================== */
+/* Relativity platform context detection + URL building. */
 
 import { API_VERSION, API_ROOT } from "../config/settings.js";
 import { state } from "./state.js";
 
-/* ---------- Context detection (from URL) ---------- */
-
-/** Resolve the current Workspace ID (AppID) from the page URL. */
 export function getWorkspaceId() {
-  // Primary: AppID on the top window (standard Relativity custom-page context)
   try {
     const p = new URLSearchParams(window.top.location.search);
     const id = p.get("AppID");
     if (id) return id;
   } catch (e) { /* cross-origin top access blocked; fall through */ }
 
-  // Fallback: query string on this iframe's own URL
   const p2 = new URLSearchParams(window.location.search);
   return p2.get("AppID") || p2.get("workspaceId") || p2.get("WorkspaceID") || null;
 }
 
-/** Resolve the Relativity instance origin. */
 export function getHost() {
-  // Prefer the parent Relativity instance origin
   try {
     if (window.top && window.top.location && window.top.location.origin) {
       return window.top.location.origin;
     }
   } catch (e) { /* cross-origin blocked */ }
-
-  // Fallback: this document's origin (same instance), or "" for relative URLs
   return window.location.origin || "";
 }
 
-/**
- * Resolve context once and store it on shared state.
- * Returns true when a workspace was found.
- */
 export function resolveContext() {
   state.workspaceId = getWorkspaceId();
   state.host = getHost();
   return !!state.workspaceId;
 }
 
-/* ---------- URL building ---------- */
-
-/** Base REST URL for the current host + workspace. */
 export function baseUrl() {
   const host = (state.host || "").replace(/\/+$/, "");
   return `${host}${API_ROOT}/${API_VERSION}/workspaces/${state.workspaceId}`;
@@ -403,71 +412,173 @@ export function baseUrl() {
 ----- END FILE: js/core/context.js -----
 
 ----- BEGIN FILE: js/core/state.js -----
-(sha1: 93cb297172e91d8ee0cb580efb55056ae27f1f53)
+(sha1: 4733985241a68358c0e9c36dd692567704c6f915)
 
 "use strict";
 
-/* ============================================================
- * Shared, mutable application state.
- *
- * Exported as a single object so that other modules can both
- * read and mutate it (ES module `let` bindings can't be
- * reassigned from outside their own module, but object
- * properties can).
- * ========================================================== */
-
+/* Shared, mutable application state. */
 export const state = {
-  /** "triggers" | "actions" */
   currentTab: "triggers",
-
-  /** In-memory cache of the last loaded list per tab. */
   cache: { triggers: [], actions: [] },
-
-  /** True while the editor modal is editing an existing record. */
   editingExisting: false,
-
-  /** Resolved once at startup. */
   workspaceId: null,
-
-  /** Resolved once at startup (may be "" => relative URLs). */
   host: ""
 };
 
 ----- END FILE: js/core/state.js -----
 
 ----- BEGIN FILE: js/core/utils.js -----
-(sha1: c466f26f15fda0a81704922be6ec5ef547489e66)
+(sha1: 0d899f6c6fa722cb4d594b1bddd198e78c4d8e2e)
 
 "use strict";
 
-/* ============================================================
- * Generic, dependency-free helpers.
- * ========================================================== */
+/* Generic, dependency-free helpers. */
 
-/** Short getElementById helper. */
 export const $ = id => document.getElementById(id);
 
-/** Escape a value for safe insertion into HTML. */
 export function esc(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/** Deep clone via JSON (safe for the plain-data payloads used here). */
 export function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
 ----- END FILE: js/core/utils.js -----
 
------ BEGIN FILE: js/data/templates.js -----
-(sha1: cc91627b89586ecb9ab41825775916a83aafb840)
+----- BEGIN FILE: js/data/inputTemplates.js -----
+(sha1: e2cc627acf8831777616e1229f7c8349722400cb)
 
 "use strict";
 
 /* ============================================================
- * Starter payloads for new items.
+ * Type-aware Input scaffolds for each UIElementType.
+ *
+ * Picking a UIElementType inserts an Input object pre-shaped
+ * with exactly the sub-fields that element type needs, based on
+ * the Automated Workflows REST schema:
+ *
+ *   - Text            plain string entry
+ *   - Number          numeric entry
+ *   - Email           email entry (semicolon-separated)
+ *   - Dropdown        backed by an ObjectManagerQueryInputSource
+ *   - MultiCheckbox   backed by InputSources (each optionally
+ *                     nesting Children for sub-choices)
+ *   - Switch          backed by a BooleanInputSource
+ *
+ * Every scaffold carries the common Input fields (Label, ID,
+ * UIElementType) and a Properties object so a dynamic-rule
+ * VisibleExpression can be added later. The tree editor then
+ * lets the user fine-tune any value or nest further.
  * ========================================================== */
+
+/* Order shown in the picker. */
+export const UI_ELEMENT_TYPES = [
+  "Text",
+  "Number",
+  "Email",
+  "Dropdown",
+  "MultiCheckbox",
+  "Switch"
+];
+
+/* Short human descriptions for the picker's title/help. */
+export const UI_ELEMENT_HELP = {
+  Text:          "Single-line text entry.",
+  Number:        "Numeric entry.",
+  Email:         "Email address(es), semicolon-separated.",
+  Dropdown:      "Choice list populated by an Object Manager query.",
+  MultiCheckbox: "Multiple checkboxes; supports nested Children.",
+  Switch:        "Boolean toggle backed by a BooleanInputSource."
+};
+
+/* Build a fresh Input object for the given UIElementType.
+   `idSuffix` (optional) is appended to the default ID to help
+   keep IDs unique when several are added quickly. */
+export function makeInput(uiType, idSuffix) {
+  const suffix = idSuffix != null ? String(idSuffix) : "";
+  const base = {
+    Label: `New ${uiType}`,
+    ID: `new-${uiType.toLowerCase()}${suffix}`,
+    UIElementType: uiType,
+    Properties: {}          // add "VisibleExpression": "..." here for dynamic rules
+  };
+
+  switch (uiType) {
+    case "Text":
+      return { ...base, Placeholder: "", DefaultValue: "" };
+
+    case "Number":
+      return { ...base, Placeholder: "", DefaultValue: "0" };
+
+    case "Email":
+      return {
+        ...base,
+        Placeholder: "Enter email addresses separated by a semicolon (;)",
+        DefaultValue: ""
+      };
+
+    case "Dropdown":
+      return {
+        ...base,
+        Placeholder: "Select",
+        ObjectManagerQueryInputSource: {
+          LabelFieldName: "Name",
+          ValueFieldName: "ArtifactID",
+          Guid: "00000000-0000-0000-0000-000000000000",
+          ArtifactTypeID: 15
+        }
+      };
+
+    case "MultiCheckbox":
+      return {
+        ...base,
+        DefaultValue: "",
+        InputSources: [
+          { Label: "Option One", Value: "option-1" },
+          { Label: "Option Two", Value: "option-2" }
+        ]
+      };
+
+    case "Switch":
+      return {
+        ...base,
+        DefaultValue: "true",
+        BooleanInputSource: {
+          TrueValue: "true",
+          FalseValue: "false",
+          TrueLabel: "Yes",
+          FalseLabel: "No"
+        }
+      };
+
+    default:
+      return { ...base, DefaultValue: "" };
+  }
+}
+
+/* A single nested child choice for a MultiCheckbox InputSource,
+   matching the schema's Children shape. */
+export function makeChildChoice() {
+  return {
+    ID: "child-choices",
+    UIElementType: "MultiCheckbox",
+    InputSources: [
+      { Label: "Child Option", Value: "child-option" }
+    ],
+    Properties: {}
+  };
+}
+
+----- END FILE: js/data/inputTemplates.js -----
+
+----- BEGIN FILE: js/data/templates.js -----
+(sha1: 769bf1e93d3f783840939ad835f426f6f3e66264)
+
+"use strict";
+
+/* Starter payloads for new items. */
 
 export const TRIGGER_TPL = {
   Group: "Other",
@@ -521,7 +632,6 @@ export const ACTION_TPL = {
   ]
 };
 
-/** Return the correct template for a given tab key. */
 export function templateFor(tabKey) {
   return tabKey === "triggers" ? TRIGGER_TPL : ACTION_TPL;
 }
@@ -529,23 +639,17 @@ export function templateFor(tabKey) {
 ----- END FILE: js/data/templates.js -----
 
 ----- BEGIN FILE: js/features/list.js -----
-(sha1: 182ebad9a5ba44e40863be5eb8005cf19139ff7f)
+(sha1: 95052087cfca584053f826d3ffe67fd442fea931)
 
 "use strict";
 
-/* ============================================================
- * Loads the current tab's data and drives the grid.
- *
- * Bridges the service layer (data) and the UI layer (grid +
- * status). This is the one place that knows both.
- * ========================================================== */
+/* Loads the current tab's data and drives the grid. */
 
 import { state } from "../core/state.js";
 import { listEntities } from "../services/entityService.js";
 import { renderGrid } from "../ui/grid.js";
 import { setStatus } from "../ui/status.js";
 
-/** Load the current tab's list from the API into the cache. */
 export async function loadList() {
   if (!state.workspaceId) return;
   const tab = state.currentTab;
@@ -565,33 +669,24 @@ export async function loadList() {
 ----- END FILE: js/features/list.js -----
 
 ----- BEGIN FILE: js/services/entityService.js -----
-(sha1: 3b222375f1276282cd4fb1a415d96ba2241f4319)
+(sha1: de715a272e0803bc9a21b1e44f28c1f8e2049955)
 
 "use strict";
 
-/* ============================================================
- * Business logic for reading/writing triggers & actions.
- *
- * These functions know how to talk to the API for a given
- * entity type. They know nothing about buttons, modals, or
- * tables — the UI layer calls into here.
- * ========================================================== */
+/* Business logic for reading/writing triggers & actions. */
 
 import { apiCall } from "../core/api.js";
 import { ENTITY } from "../config/settings.js";
 
-/** Fetch the full list for an entity type. Returns an array. */
 export async function listEntities(tabKey) {
   const json = await apiCall("GET", ENTITY[tabKey].path);
   return Array.isArray(json.Result) ? json.Result : [];
 }
 
-/** Create or update a record. Returns the raw API response. */
 export async function saveEntity(tabKey, body) {
   return apiCall("PUT", ENTITY[tabKey].path, { body });
 }
 
-/** Delete a record. Returns the raw API response. */
 export async function deleteEntity(tabKey, item) {
   const body = tabKey === "triggers"
     ? { triggerID: item.ID, triggerVersion: item.Version }
@@ -602,15 +697,25 @@ export async function deleteEntity(tabKey, item) {
 ----- END FILE: js/services/entityService.js -----
 
 ----- BEGIN FILE: js/ui/editor.js -----
-(sha1: 5ab646c4135f7f2935e970d2cebf40dc562006cd)
+(sha1: 54663484ebdd3250ebec0ae8b3a9bfff12a035ef)
 
 "use strict";
 
 /* ============================================================
- * Editor modal: open/close, field<->JSON sync, save, delete.
+ * Editor modal.
  *
- * Talks to the service layer for persistence and to the list
- * feature to refresh after a change.
+ * Two synchronized ways to edit a trigger/action body:
+ *   - "Form" view : quick fields (Label/ID/Group/Version), a
+ *                   type-aware "Add Input" picker, and a
+ *                   recursive tree editor for everything else.
+ *   - "JSON" view : the raw textarea escape hatch.
+ *
+ * The "Add Input" picker scaffolds a correctly-shaped Input for
+ * the chosen UIElementType (Text, Number, Email, Dropdown,
+ * MultiCheckbox, Switch) and drops it into the Inputs array;
+ * the tree editor then handles fine-tuning and nesting.
+ *
+ * `workingObj` is the single source of truth.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";
@@ -618,28 +723,88 @@ import { state } from "../core/state.js";
 import { ENTITY } from "../config/settings.js";
 import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
-import { templateFor, TRIGGER_TPL, ACTION_TPL } from "../data/templates.js";
+import { templateFor } from "../data/templates.js";
+import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
 import { setStatus } from "./status.js";
 import { loadList } from "../features/list.js";
+import { createTreeEditor } from "./treeEditor.js";
+
+const QUICK_FIELDS = ["fLabel", "fId", "fGroup", "fVersion"];
+
+let workingObj = {};
+let tree = null;
+let view = "form"; // "form" | "json"
+let wired = false;
+
+/* ---------- Quick fields <-> workingObj ---------- */
+function populateQuickFields() {
+  $("fLabel").value   = workingObj.Label || "";
+  $("fId").value      = workingObj.ID || "";
+  $("fGroup").value   = workingObj.Group || "";
+  $("fVersion").value = workingObj.Version != null ? workingObj.Version : 1;
+  $("fId").readOnly   = state.editingExisting;
+}
+
+function applyQuickFieldsToObj() {
+  workingObj.Label   = $("fLabel").value.trim();
+  workingObj.ID      = $("fId").value.trim();
+  workingObj.Group   = $("fGroup").value.trim();
+  workingObj.Version = Number($("fVersion").value) || 1;
+}
+
+/* ---------- Populate the UIElementType picker once ---------- */
+function populateInputTypePicker() {
+  const sel = $("inputType");
+  if (sel.options.length) return; // already filled
+  UI_ELEMENT_TYPES.forEach(tp => {
+    const o = document.createElement("option");
+    o.value = tp;
+    o.textContent = tp;
+    o.title = UI_ELEMENT_HELP[tp] || "";
+    sel.appendChild(o);
+  });
+}
+
+/* ---------- Add a type-aware Input to workingObj.Inputs ---------- */
+function addInput() {
+  const uiType = $("inputType").value || "Text";
+  if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
+  // Suffix helps keep default IDs distinct when adding several quickly.
+  const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
+  workingObj.Inputs.push(makeInput(uiType, suffix));
+  tree.render();
+  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
+}
+
+/* ---------- One-time wiring of tree + listeners ---------- */
+function ensureWired() {
+  if (wired) return;
+  tree = createTreeEditor($("treeWrap"), workingObj, () => {
+    populateQuickFields();
+  });
+  QUICK_FIELDS.forEach(id => {
+    $(id).addEventListener("input", () => {
+      applyQuickFieldsToObj();
+      if (view === "form") tree.render();
+    });
+  });
+  populateInputTypePicker();
+  $("addInput").addEventListener("click", addInput);
+  wired = true;
+}
 
 /* ---------- Open / close ---------- */
 export function openEditor(existingItem) {
   state.editingExisting = !!existingItem;
   const ent = ENTITY[state.currentTab];
+  $("modalTitle").textContent = (state.editingExisting ? "Edit " : "New ") + ent.singular;
 
-  $("modalTitle").textContent =
-    (state.editingExisting ? "Edit " : "New ") + ent.singular;
+  workingObj = existingItem ? clone(existingItem) : clone(templateFor(state.currentTab));
 
-  const data = existingItem
-    ? clone(existingItem)
-    : clone(templateFor(state.currentTab));
-
-  $("fLabel").value   = data.Label || "";
-  $("fId").value      = data.ID || "";
-  $("fGroup").value   = data.Group || "";
-  $("fVersion").value = data.Version != null ? data.Version : 1;
-  $("fId").readOnly   = state.editingExisting; // ID + version identify the record; keep stable when editing
-  $("fJson").value    = JSON.stringify(data, null, 2);
+  ensureWired();
+  tree.setData(workingObj);
+  populateQuickFields();
+  setView("form");
 
   $("overlay").classList.add("show");
 }
@@ -648,21 +813,40 @@ export function closeEditor() {
   $("overlay").classList.remove("show");
 }
 
-/* ---------- Sync the quick-fill fields into the JSON body ---------- */
-export function applyFieldsToJson() {
-  let obj;
-  try { obj = JSON.parse($("fJson").value || "{}"); }
-  catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return null; }
+/* ---------- View toggle ---------- */
+export function setView(next) {
+  if (next === "json") {
+    applyQuickFieldsToObj();
+    $("fJson").value = JSON.stringify(workingObj, null, 2);
+    $("treeWrap").style.display  = "none";
+    $("quickGrid").style.display = "none";
+    $("inputAdder").style.display = "none";
+    $("fJson").style.display      = "";
+    $("formatJson").style.display = "";
+  } else {
+    if (view === "json") {
+      let obj;
+      try { obj = JSON.parse($("fJson").value || "{}"); }
+      catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return; }
+      workingObj = obj;
+      tree.setData(workingObj);
+      populateQuickFields();
+    }
+    $("treeWrap").style.display   = "";
+    $("quickGrid").style.display  = "";
+    $("inputAdder").style.display = "";
+    $("fJson").style.display      = "none";
+    $("formatJson").style.display = "none";
+  }
 
-  obj.Label   = $("fLabel").value.trim();
-  obj.ID      = $("fId").value.trim();
-  obj.Group   = $("fGroup").value.trim();
-  obj.Version = Number($("fVersion").value) || 1;
-  $("fJson").value = JSON.stringify(obj, null, 2);
-  return obj;
+  view = next;
+  $("viewForm").classList.toggle("primary", next === "form");
+  $("viewForm").classList.toggle("ghost",   next !== "form");
+  $("viewJson").classList.toggle("primary", next === "json");
+  $("viewJson").classList.toggle("ghost",   next !== "json");
 }
 
-/* ---------- Format the JSON textarea ---------- */
+/* ---------- JSON view helpers ---------- */
 export function formatJson() {
   try { $("fJson").value = JSON.stringify(JSON.parse($("fJson").value), null, 2); }
   catch (e) { setStatus("Invalid JSON: " + e.message, "err"); }
@@ -670,23 +854,31 @@ export function formatJson() {
 
 /* ---------- Insert the starter template ---------- */
 export function loadTemplate() {
-  const tpl = templateFor(state.currentTab);
-  $("fJson").value  = JSON.stringify(tpl, null, 2);
-  $("fLabel").value = tpl.Label;
-  $("fId").value    = tpl.ID;
-  $("fGroup").value = tpl.Group || "";
-  $("fVersion").value = tpl.Version;
+  workingObj = clone(templateFor(state.currentTab));
+  if (view === "json") {
+    $("fJson").value = JSON.stringify(workingObj, null, 2);
+  } else {
+    tree.setData(workingObj);
+  }
+  populateQuickFields();
 }
 
 /* ---------- Save (create or update) ---------- */
 export async function saveItem() {
-  const obj = applyFieldsToJson();
-  if (!obj) return;
-  if (!obj.ID) { setStatus("An ID is required.", "err"); return; }
+  if (view === "json") {
+    let obj;
+    try { obj = JSON.parse($("fJson").value || "{}"); }
+    catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return; }
+    workingObj = obj;
+  } else {
+    applyQuickFieldsToObj();
+  }
+
+  if (!workingObj.ID) { setStatus("An ID is required.", "err"); return; }
 
   setStatus("Saving…", "info");
   try {
-    const json = await saveEntity(state.currentTab, obj);
+    const json = await saveEntity(state.currentTab, workingObj);
     if (json.Success === false) {
       setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
       return;
@@ -721,25 +913,18 @@ export async function deleteItem(item) {
   }
 }
 
-/* Re-export templates so callers that only import the editor
-   still have access if needed. */
-export { TRIGGER_TPL, ACTION_TPL };
-
 ----- END FILE: js/ui/editor.js -----
 
 ----- BEGIN FILE: js/ui/grid.js -----
-(sha1: aa56f7ba964d57381107e02ecb13c7bfb07a9b10)
+(sha1: 4a66b9c0a1b9ce6e943e80cc2ae3dd4de6b5d7a4)
 
 "use strict";
 
-/* ============================================================
- * Table rendering + client-side filtering.
- * ========================================================== */
+/* Table rendering + client-side filtering. */
 
 import { $, esc } from "../core/utils.js";
 import { state } from "../core/state.js";
 
-/** Items for the current tab, filtered by the search box. */
 export function filteredItems() {
   const term = $("search").value.trim().toLowerCase();
   let items = state.cache[state.currentTab] || [];
@@ -751,12 +936,10 @@ export function filteredItems() {
   return items;
 }
 
-/** Alias kept for clarity where row indices are resolved. */
 export function visibleItems() {
   return filteredItems();
 }
 
-/** Render the grid body from the current cache + filter. */
 export function renderGrid() {
   const grid = $("grid");
   const items = filteredItems();
@@ -787,24 +970,20 @@ export function renderGrid() {
 ----- END FILE: js/ui/grid.js -----
 
 ----- BEGIN FILE: js/ui/status.js -----
-(sha1: a86137d14f661d6b6140b694751357cf79319239)
+(sha1: 53940c1e6cf47e2dd937ecfd26bbfeea1f0bd27a)
 
 "use strict";
 
-/* ============================================================
- * Status banner rendering.
- * ========================================================== */
+/* Status banner rendering. */
 
 import { $ } from "../core/utils.js";
 
-/** Show a message in the status banner. type: "ok" | "err" | "info". */
 export function setStatus(msg, type) {
   const el = $("status");
   el.textContent = msg;
   el.className = "status show " + (type || "info");
 }
 
-/** Hide the status banner. */
 export function clearStatus() {
   $("status").className = "status";
 }
@@ -812,13 +991,11 @@ export function clearStatus() {
 ----- END FILE: js/ui/status.js -----
 
 ----- BEGIN FILE: js/ui/tabs.js -----
-(sha1: 872b4bc0cff680e0346db2a37268c68f6265d45c)
+(sha1: 813f4b5843fb73cf0500e6951ca17f4a37bea36f)
 
 "use strict";
 
-/* ============================================================
- * Tab switching between Triggers and Actions.
- * ========================================================== */
+/* Tab switching between Triggers and Actions. */
 
 import { $ } from "../core/utils.js";
 import { state } from "../core/state.js";
@@ -826,7 +1003,6 @@ import { ENTITY } from "../config/settings.js";
 import { renderGrid } from "./grid.js";
 import { loadList } from "../features/list.js";
 
-/** Switch the active tab, refresh labels, and load if needed. */
 export function switchTab(tab) {
   state.currentTab = tab;
 
@@ -844,6 +1020,238 @@ export function switchTab(tab) {
 
 ----- END FILE: js/ui/tabs.js -----
 
+----- BEGIN FILE: js/ui/treeEditor.js -----
+(sha1: 01a34e56f8f8a4067533a742c12463243d2bc619)
+
+"use strict";
+
+/* ============================================================
+ * Recursive JSON tree editor.
+ *
+ * Renders an editable, type-aware, infinitely-nestable view of
+ * a plain JS object/array. Supports editing primitives, changing
+ * a node's type, renaming keys, adding/removing fields & items,
+ * and collapsing branches. Mutates the supplied object IN PLACE
+ * so the caller always holds the live value via getData().
+ * ========================================================== */
+
+const TYPES = ["string", "number", "boolean", "object", "array", "null"];
+
+export function typeOf(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v;
+}
+
+export function defaultFor(type) {
+  switch (type) {
+    case "number":  return 0;
+    case "boolean": return false;
+    case "object":  return {};
+    case "array":   return [];
+    case "null":    return null;
+    default:        return "";
+  }
+}
+
+export function uniqueKey(obj, base) {
+  let k = base, n = 2;
+  while (Object.prototype.hasOwnProperty.call(obj, k)) k = base + n++;
+  return k;
+}
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null) continue;
+      if (k === "class") node.className = v;
+      else if (k === "value") node.value = v;
+      else if (k.slice(0, 2) === "on" && typeof v === "function") {
+        node.addEventListener(k.slice(2).toLowerCase(), v);
+      } else {
+        node.setAttribute(k, v);
+      }
+    }
+  }
+  (children || []).forEach(c => {
+    if (c == null) return;
+    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  });
+  return node;
+}
+
+export function createTreeEditor(container, initial, onChange) {
+  let root = (initial && typeof initial === "object") ? initial : {};
+  const collapsed = new Set();
+
+  function commit() { if (onChange) onChange(root); }
+  function pathKey(path) { return path.join("\u0000"); }
+
+  function getParent(path) {
+    let node = root;
+    for (let i = 0; i < path.length - 1; i++) node = node[path[i]];
+    return node;
+  }
+  function getValue(path) {
+    let node = root;
+    for (let i = 0; i < path.length; i++) node = node[path[i]];
+    return node;
+  }
+
+  function setAt(path, value) {
+    if (path.length === 0) { root = value; return; }
+    getParent(path)[path[path.length - 1]] = value;
+  }
+
+  function removeAt(path) {
+    const parent = getParent(path);
+    const key = path[path.length - 1];
+    if (Array.isArray(parent)) parent.splice(key, 1);
+    else delete parent[key];
+    rerender(); commit();
+  }
+
+  function addChild(path) {
+    const node = path.length === 0 ? root : getValue(path);
+    if (Array.isArray(node)) node.push("");
+    else node[uniqueKey(node, "newField")] = "";
+    collapsed.delete(pathKey(path));
+    rerender(); commit();
+  }
+
+  function changeType(path, newType) {
+    setAt(path, defaultFor(newType));
+    rerender(); commit();
+  }
+
+  function renameKey(path, newName) {
+    const parent = getParent(path);
+    const oldKey = path[path.length - 1];
+    const trimmed = String(newName).trim();
+    if (!trimmed || trimmed === oldKey) { rerender(); return; }
+    const rebuilt = {};
+    for (const k in parent) {
+      if (k === oldKey) rebuilt[uniqueKey(rebuilt, trimmed)] = parent[k];
+      else rebuilt[k] = parent[k];
+    }
+    for (const k in parent) delete parent[k];
+    Object.assign(parent, rebuilt);
+    rerender(); commit();
+  }
+
+  function renderRow(value, path, keyName, inArray) {
+    const t = typeOf(value);
+    const isBranch = (t === "object" || t === "array");
+    const pk = pathKey(path);
+    const isCollapsed = collapsed.has(pk);
+
+    const row = el("div", { class: "tnode" });
+    const head = el("div", { class: "trow" });
+
+    if (isBranch) {
+      head.appendChild(el("button", {
+        class: "tbtn ttoggle", type: "button",
+        onclick: () => { isCollapsed ? collapsed.delete(pk) : collapsed.add(pk); rerender(); }
+      }, [isCollapsed ? "\u25B8" : "\u25BE"]));
+    } else {
+      head.appendChild(el("span", { class: "tspacer" }));
+    }
+
+    if (inArray) {
+      head.appendChild(el("span", { class: "tindex" }, ["[" + keyName + "]"]));
+    } else {
+      head.appendChild(el("input", {
+        class: "tkey", value: String(keyName), title: "Property name",
+        onchange: e => renameKey(path, e.target.value)
+      }));
+    }
+
+    head.appendChild(el("select", {
+      class: "ttype", title: "Field type",
+      onchange: e => changeType(path, e.target.value)
+    }, TYPES.map(tp => {
+      const o = el("option", { value: tp }, [tp]);
+      if (tp === t) o.selected = true;
+      return o;
+    })));
+
+    if (t === "string") {
+      head.appendChild(el("input", {
+        class: "tval", value: value,
+        oninput: e => { setAt(path, e.target.value); commit(); }
+      }));
+    } else if (t === "number") {
+      head.appendChild(el("input", {
+        class: "tval", type: "number", value: String(value),
+        oninput: e => { setAt(path, e.target.value === "" ? 0 : Number(e.target.value)); commit(); }
+      }));
+    } else if (t === "boolean") {
+      const cb = el("input", { class: "tcheck", type: "checkbox" });
+      cb.checked = !!value;
+      cb.addEventListener("change", e => { setAt(path, e.target.checked); commit(); });
+      head.appendChild(cb);
+    } else if (t === "null") {
+      head.appendChild(el("span", { class: "tnull" }, ["null"]));
+    } else {
+      const count = t === "array" ? value.length : Object.keys(value).length;
+      head.appendChild(el("span", { class: "tsummary" },
+        [t === "array" ? `${count} item(s)` : `${count} field(s)`]));
+      head.appendChild(el("button", {
+        class: "tbtn tadd", type: "button",
+        onclick: () => addChild(path)
+      }, [t === "array" ? "+ item" : "+ field"]));
+    }
+
+    head.appendChild(el("button", {
+      class: "tbtn tdel", type: "button", title: "Remove",
+      onclick: () => removeAt(path)
+    }, ["\u2715"]));
+
+    row.appendChild(head);
+
+    if (isBranch && !isCollapsed) {
+      const kids = el("div", { class: "tkids" });
+      if (t === "array") {
+        value.forEach((item, i) => kids.appendChild(renderRow(item, path.concat(i), i, true)));
+      } else {
+        Object.keys(value).forEach(k => kids.appendChild(renderRow(value[k], path.concat(k), k, false)));
+      }
+      row.appendChild(kids);
+    }
+
+    return row;
+  }
+
+  function rerender() {
+    container.innerHTML = "";
+    const t = typeOf(root);
+    if (t === "object") {
+      Object.keys(root).forEach(k => container.appendChild(renderRow(root[k], [k], k, false)));
+    } else if (t === "array") {
+      root.forEach((item, i) => container.appendChild(renderRow(item, [i], i, true)));
+    }
+    container.appendChild(el("button", {
+      class: "tbtn tadd troot", type: "button",
+      onclick: () => addChild([])
+    }, [t === "array" ? "+ item" : "+ field"]));
+  }
+
+  rerender();
+  return {
+    getData: () => root,
+    setData: obj => {
+      root = (obj && typeof obj === "object") ? obj : {};
+      collapsed.clear();
+      rerender();
+    },
+    render: rerender
+  };
+}
+
+----- END FILE: js/ui/treeEditor.js -----
+
 ## Included files
 css/styles.css
 index.html
@@ -853,6 +1261,7 @@ js/core/api.js
 js/core/context.js
 js/core/state.js
 js/core/utils.js
+js/data/inputTemplates.js
 js/data/templates.js
 js/features/list.js
 js/services/entityService.js
@@ -860,3 +1269,4 @@ js/ui/editor.js
 js/ui/grid.js
 js/ui/status.js
 js/ui/tabs.js
+js/ui/treeEditor.js

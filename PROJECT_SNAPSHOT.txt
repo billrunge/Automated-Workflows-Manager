@@ -1,23 +1,26 @@
 # Project Snapshot
-Generated: 2026-07-24T16:36:41Z
-Commit: 1adb015
+Generated: 2026-07-27T15:16:52Z
+Commit: c24063c
 
 ----- BEGIN FILE: css/styles.css -----
-(sha1: 00f5271cbd432699c424942281c8fa43b51595a5)
+(sha1: 343e082f491bab76438a86ca11e43705c93f13e0)
 
 :root{
-  --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
+  --bg:#e8edf4; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
   --muted:#6b7684; --accent:#0a6ed1; --accent-dk:#084f96;
   --danger:#c0392b; --danger-dk:#96271a; --ok:#2e7d32; --warn:#b26a00;
   --shadow:0 1px 3px rgba(0,0,0,.12);
 }
+
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
 header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
 h1{font-size:18px;margin:0 0 4px}
+
 input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
   border-radius:4px;padding:6px 8px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
+
 button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:7px 14px;background:#eef1f5;color:var(--text)}
 button:hover{background:#e2e7ee}
 button.primary{background:var(--accent);color:#fff}
@@ -27,40 +30,53 @@ button.danger:hover{background:var(--danger-dk)}
 button.ghost{background:transparent;border-color:var(--border)}
 button.sm{padding:4px 9px;font-size:12px}
 button:disabled{opacity:.5;cursor:not-allowed}
-main{padding:16px}
+
+main{max-width:none;margin:0;padding:16px 24px}
+
 .tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
 .tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
   background:transparent;color:var(--muted);font-weight:600}
 .tab.active{background:var(--panel);color:var(--accent);border-color:var(--border);margin-bottom:-1px}
+
 .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 .toolbar .spacer{flex:1}
-.toolbar .search{width:240px}
+.toolbar .search{min-width:220px}
+
 .card{background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
 th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#f7f9fb}
+
 .mono{font-family:Consolas,"Courier New",monospace;font-size:12.5px}
 .pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
 .rowbtns{display:flex;gap:6px;white-space:nowrap}
 .empty{padding:26px;text-align:center;color:var(--muted)}
-/* Status banner: errors (red) and brief info (blue) only. Success is silent. */
+
 .status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
 .status.show{display:block}
+.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
 .status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
 .status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
-/* modal */
+
+/* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(15,23,35,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
 .overlay.show{display:flex}
 .modal{background:var(--panel);border-radius:8px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
 .modal h2{margin:0;font-size:16px}
 .modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
 .modal .body{padding:18px;overflow:auto}
-.modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+.modal .foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:14px 18px;border-top:1px solid var(--border)}
+/* In-modal status banner: fills the space left of the footer buttons.
+   Hidden (display:none via .status) until a message is set, so the
+   buttons stay right-aligned when there's nothing to show. */
+.modalstatus{flex:1;margin:0;margin-right:auto;text-align:left;min-height:0}
+
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
 .grid .field{display:flex;flex-direction:column;gap:3px}
 .grid label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+
 .jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
 textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
@@ -98,12 +114,12 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 .tdel:hover{background:#fbeae7}
 .tadd{color:var(--accent);border-color:#bcd8f5;flex:0 0 auto}
 .tadd:hover{background:#eaf3fc}
-.troot{margin-top:8px}
+.troot{margin-top:6px}
 
 ----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: d5d7eadadb71dfc86f0313493644b27390991614)
+(sha1: b94bf23e39b6dee7a27a5d1f790e11f226826479)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -116,10 +132,6 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 </head>
 
 <body>
-  <header>
-    <h1>Automated Workflows Manager</h1>
-  </header>
-
   <main>
     <div id="status" class="status"></div>
 
@@ -204,6 +216,9 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
         </div>
       </div>
       <div class="foot">
+        <!-- In-modal status banner: shows validation/save messages
+             without having to close the modal. Sits left of the buttons. -->
+        <div id="modalStatus" class="status modalstatus"></div>
         <button class="ghost" id="modalCancel">Cancel</button>
         <button class="primary" id="saveBtn">Save</button>
       </div>
@@ -219,16 +234,16 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 ----- END FILE: index.html -----
 
 ----- BEGIN FILE: js/app.js -----
-(sha1: f791f59b73fbb40e572465a54dadac40d1c7901c)
+(sha1: 0724eb1517b02ce3c720cef42909821276d88bae)
 
 "use strict";
 
 /* ============================================================
- * Application entry point.
+ * Application entry point (loaded as a module, so deferred).
+ * Resolves context, wires events, kicks off the first load.
  *
- * Loaded as a module (deferred), so the DOM is already parsed
- * when this runs. Responsible for: resolving context, wiring
- * events, and kicking off the first load.
+ * There is no manual Refresh button: the list auto-refreshes on
+ * boot, on every tab switch, and after every save/delete.
  * ========================================================== */
 
 import { $ } from "./core/utils.js";
@@ -295,18 +310,13 @@ main();
 ----- END FILE: js/app.js -----
 
 ----- BEGIN FILE: js/config/settings.js -----
-(sha1: d8cf8b7a5def5f73a07d484a85f3e9d8d8009be4)
+(sha1: f30ae68034d6e8e0c1072a37e6bedfc2f5658f81)
 
 "use strict";
 
-/* ============================================================
- * Fixed application configuration.
- * Values here do not change at runtime.
- * ========================================================== */
+/* Fixed application configuration. */
 
 export const API_VERSION = "v2";
-
-/* The REST route template. {host} and {workspaceId} are filled at runtime. */
 export const API_ROOT = "/Relativity.REST/api/relativity-automated-workflows";
 
 export const ENTITY = {
@@ -420,7 +430,7 @@ export const state = {
 ----- END FILE: js/core/state.js -----
 
 ----- BEGIN FILE: js/core/utils.js -----
-(sha1: c466f26f15fda0a81704922be6ec5ef547489e66)
+(sha1: 243085928f3667af847cb6118a6604d985139ceb)
 
 "use strict";
 
@@ -433,21 +443,177 @@ export function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-/** Deep clone via JSON (safe for the plain-data payloads used here). */
-export function clone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
+export function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 ----- END FILE: js/core/utils.js -----
 
------ BEGIN FILE: js/data/templates.js -----
-(sha1: cc91627b89586ecb9ab41825775916a83aafb840)
+----- BEGIN FILE: js/data/inputTemplates.js -----
+(sha1: 8a594976e577c8e6f5a7f10050364a36933d983f)
 
 "use strict";
 
 /* ============================================================
- * Starter payloads for new items.
+ * Type-aware Input scaffolds for each UIElementType.
+ *
+ * Picking a UIElementType inserts an Input object pre-shaped
+ * with exactly the sub-fields that element type needs, based on
+ * the Automated Workflows REST schema (UIElementType enum):
+ *
+ *   Dropdown       single-select list; backed by InputSources OR
+ *                  ObjectManagerQueryInputSource (mutually exclusive)
+ *   MultiCheckbox  multiple checkboxes; backed by InputSources,
+ *                  each option may nest Children
+ *   RadioButtons   single-select radio list; backed by InputSources
+ *   Email          email entry, multiple addresses separated by ";"
+ *   Switch         Boolean toggle; backed by a BooleanInputSource
+ *   Hidden         not shown to the user; carries a default value
+ *
+ * NOTE: "Text" and "Number" are NOT valid UIElementType values in
+ * the documented schema and have been removed. Free text is entered
+ * through the schema's supported element types above.
+ *
+ * The schema also requires that an input carry AT MOST ONE of:
+ *   InputSources | ObjectManagerQueryInputSource | BooleanInputSource
+ * Each scaffold below respects that rule.
+ *
+ * Every scaffold carries the common Input fields (Label, ID,
+ * UIElementType) and a Properties object so a dynamic-rule
+ * VisibleExpression can be added later. The tree editor then
+ * lets the user fine-tune any value or nest further.
  * ========================================================== */
+
+/* Valid UIElementType values, in the order shown in the picker. */
+export const UI_ELEMENT_TYPES = [
+  "Dropdown",
+  "MultiCheckbox",
+  "RadioButtons",
+  "Email",
+  "Switch",
+  "Hidden"
+];
+
+/* Short human descriptions for the picker's title/help. */
+export const UI_ELEMENT_HELP = {
+  Dropdown:      "Single-select list. Values from a hardcoded list or an Object Manager query.",
+  MultiCheckbox: "Multiple checkboxes; supports nested Children per option.",
+  RadioButtons:  "Single-select radio list from a hardcoded list of options.",
+  Email:         "Email address(es), semicolon-separated.",
+  Switch:        "Boolean toggle backed by a BooleanInputSource.",
+  Hidden:        "Not shown to the user; carries a default value only."
+};
+
+/* A reusable Object Manager query source (for dynamic dropdowns).
+   Exported so the editor can swap a Dropdown's source on demand. */
+export function makeObjectManagerSource() {
+  return {
+    LabelFieldName: "Name",
+    ValueFieldName: "ArtifactID",
+    ArtifactTypeID: 10,          // set to the target object type; or use Guid instead
+    Condition: ""                // Object Manager query language condition
+  };
+}
+
+/* A single hardcoded option for InputSources-backed fields. */
+export function makeInputSource(label, value) {
+  return { Label: label || "Option", Value: value != null ? value : "option" };
+}
+
+/* A single nested child choice for a MultiCheckbox InputSource,
+   matching the schema's Children shape. */
+export function makeChildChoice() {
+  return {
+    ID: "child-choices",
+    UIElementType: "MultiCheckbox",
+    InputSources: [
+      { Label: "Child Option", Value: "child-option" }
+    ],
+    Properties: {}
+  };
+}
+
+/* Build a fresh Input object for the given UIElementType.
+   idSuffix (optional) is appended to the default ID to help
+   keep IDs unique when several are added quickly. */
+export function makeInput(uiType, idSuffix) {
+  const suffix = idSuffix != null ? String(idSuffix) : "";
+  const base = {
+    Label: `New ${uiType}`,
+    ID: `new-${uiType.toLowerCase()}${suffix}`,
+    UIElementType: uiType,
+    Properties: {}    // add "VisibleExpression": "..." here for dynamic rules
+  };
+
+  switch (uiType) {
+    case "Dropdown":
+      // Hardcoded values by default; swap InputSources for
+      // ObjectManagerQueryInputSource for a dynamic, query-backed list.
+      return {
+        ...base,
+        Placeholder: "",
+        InputSources: [
+          makeInputSource("Option 1", "option1"),
+          makeInputSource("Option 2", "option2")
+        ]
+      };
+
+    case "RadioButtons":
+      return {
+        ...base,
+        InputSources: [
+          makeInputSource("Option 1", "option1"),
+          makeInputSource("Option 2", "option2")
+        ]
+      };
+
+    case "MultiCheckbox":
+      return {
+        ...base,
+        InputSources: [
+          makeInputSource("Choice 1", "choice1"),
+          makeInputSource("Choice 2", "choice2")
+        ]
+      };
+
+    case "Email":
+      return {
+        ...base,
+        Placeholder: "Enter email addresses separated by a semicolon (;)"
+      };
+
+    case "Switch":
+      // Backed by a BooleanInputSource (NOT InputSources).
+      return {
+        ...base,
+        BooleanInputSource: {
+          TrueLabel: "Yes",
+          FalseLabel: "No",
+          TrueValue: "true",
+          FalseValue: "false"
+        }
+      };
+
+    case "Hidden":
+      // No source object; just a default value carried silently.
+      return {
+        ...base,
+        DefaultValue: ""
+      };
+
+    default:
+      // Unknown type: return the common base so the tree editor
+      // can still expose it; validation will flag it on save.
+      return base;
+  }
+}
+
+----- END FILE: js/data/inputTemplates.js -----
+
+----- BEGIN FILE: js/data/templates.js -----
+(sha1: 769bf1e93d3f783840939ad835f426f6f3e66264)
+
+"use strict";
+
+/* Starter payloads for new items. */
 
 export const TRIGGER_TPL = {
   Group: "Other",
@@ -508,7 +674,7 @@ export function templateFor(tabKey) {
 ----- END FILE: js/data/templates.js -----
 
 ----- BEGIN FILE: js/features/list.js -----
-(sha1: 182ebad9a5ba44e40863be5eb8005cf19139ff7f)
+(sha1: b30b29a07ddd07075c6da69b5b34f3d54031eb31)
 
 "use strict";
 
@@ -565,15 +731,32 @@ export async function deleteEntity(tabKey, item) {
 ----- END FILE: js/services/entityService.js -----
 
 ----- BEGIN FILE: js/ui/editor.js -----
-(sha1: 5ab646c4135f7f2935e970d2cebf40dc562006cd)
+(sha1: 4cb87bf1dd2002ab09ef59affe6a50c715cf6d1c)
 
 "use strict";
 
 /* ============================================================
- * Editor modal: open/close, field<->JSON sync, save, delete.
+ * Editor modal.
  *
- * Talks to the service layer for persistence and to the list
- * feature to refresh after a change.
+ * Two synchronized ways to edit a trigger/action body:
+ *   "Form" view : quick fields (Label/ID/Group/Version), a
+ *                 type-aware Input picker, and a tree editor.
+ *   "JSON" view : the raw textarea escape hatch.
+ *
+ * The "Add Input" picker scaffolds a correctly-shaped Input for
+ * the chosen UIElementType (Dropdown, MultiCheckbox, RadioButtons,
+ * Email, Switch, Hidden) and drops it into the Inputs array;
+ * the tree editor then handles fine-tuning and nesting.
+ *
+ * Before every save, validateBody() checks the working object
+ * against the Automated Workflows schema so the server isn't
+ * handed a body it will reject:
+ *   - required top-level fields (ID, Group; Steps for actions)
+ *   - every Input has a valid UIElementType
+ *   - every Input carries AT MOST ONE of InputSources /
+ *     ObjectManagerQueryInputSource / BooleanInputSource
+ *
+ * workingObj is the single source of truth.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";
@@ -581,9 +764,87 @@ import { state } from "../core/state.js";
 import { ENTITY } from "../config/settings.js";
 import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
-import { templateFor, TRIGGER_TPL, ACTION_TPL } from "../data/templates.js";
+import { templateFor } from "../data/templates.js";
+import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
 import { setStatus } from "./status.js";
 import { loadList } from "../features/list.js";
+import { createTreeEditor } from "./treeEditor.js";
+
+const QUICK_FIELDS = ["fLabel", "fId", "fGroup", "fVersion"];
+
+/* The only element types the server accepts. Kept as a Set for
+   O(1) validation and derived from the shared picker list so the
+   two never drift apart. */
+const VALID_UI_TYPES = new Set(UI_ELEMENT_TYPES);
+
+/* The three mutually-exclusive value-source keys for an Input. */
+const SOURCE_KEYS = [
+  "InputSources",
+  "ObjectManagerQueryInputSource",
+  "BooleanInputSource"
+];
+
+let workingObj = {};
+let tree = null;
+let view = "form"; // "form" | "json"
+let wired = false;
+
+/* ---------- Quick fields <-> workingObj ---------- */
+function populateQuickFields() {
+  $("fLabel").value   = workingObj.Label || "";
+  $("fId").value      = workingObj.ID || "";
+  $("fGroup").value   = workingObj.Group || "";
+  $("fVersion").value = workingObj.Version != null ? workingObj.Version : 1;
+  $("fId").readOnly   = state.editingExisting;
+}
+
+function applyQuickFieldsToObj() {
+  workingObj.Label   = $("fLabel").value.trim();
+  workingObj.ID      = $("fId").value.trim();
+  workingObj.Group   = $("fGroup").value.trim();
+  workingObj.Version = Number($("fVersion").value) || 1;
+}
+
+/* ---------- Populate the UIElementType picker once ---------- */
+function populateInputTypePicker() {
+  const sel = $("inputType");
+  if (sel.options.length) return; // already filled
+  UI_ELEMENT_TYPES.forEach(tp => {
+    const o = document.createElement("option");
+    o.value = tp;
+    o.textContent = tp;
+    o.title = UI_ELEMENT_HELP[tp] || "";
+    sel.appendChild(o);
+  });
+}
+
+/* ---------- Add a type-aware Input to workingObj.Inputs ---------- */
+function addInput() {
+  const uiType = $("inputType").value || "Dropdown";
+  if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
+  // Suffix helps keep default IDs distinct when adding several quickly.
+  const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
+  workingObj.Inputs.push(makeInput(uiType, suffix));
+  tree.render();
+  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
+}
+
+/* ---------- One-time wiring of tree + listeners ---------- */
+function ensureWired() {
+  if (wired) return;
+  tree = createTreeEditor($("treeWrap"), workingObj, () => {
+    populateQuickFields();
+  });
+  QUICK_FIELDS.forEach(id => {
+    $(id).addEventListener("input", () => {
+      applyQuickFieldsToObj();
+      if (view === "form") tree.render();
+    });
+  });
+  populateInputTypePicker();
+  $("addInput").addEventListener("click", addInput);
+  wired = true;
+}
 
 /* ---------- Open / close ---------- */
 export function openEditor(existingItem) {
@@ -605,18 +866,37 @@ export function closeEditor() {
   $("overlay").classList.remove("show");
 }
 
-/* ---------- Sync the quick-fill fields into the JSON body ---------- */
-export function applyFieldsToJson() {
-  let obj;
-  try { obj = JSON.parse($("fJson").value || "{}"); }
-  catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return null; }
+/* ---------- View toggle ---------- */
+export function setView(next) {
+  if (next === "json") {
+    applyQuickFieldsToObj();
+    $("fJson").value = JSON.stringify(workingObj, null, 2);
+    $("treeWrap").style.display   = "none";
+    $("quickGrid").style.display  = "none";
+    $("inputAdder").style.display = "none";
+    $("fJson").style.display      = "";
+    $("formatJson").style.display = "";
+  } else {
+    if (view === "json") {
+      let obj;
+      try { obj = JSON.parse($("fJson").value || "{}"); }
+      catch (e) { setStatus("Body JSON is invalid: " + e.message, "err"); return; }
+      workingObj = obj;
+      tree.setData(workingObj);
+      populateQuickFields();
+    }
+    $("treeWrap").style.display   = "";
+    $("quickGrid").style.display  = "";
+    $("inputAdder").style.display = "";
+    $("fJson").style.display      = "none";
+    $("formatJson").style.display = "none";
+  }
 
-  obj.Label   = $("fLabel").value.trim();
-  obj.ID      = $("fId").value.trim();
-  obj.Group   = $("fGroup").value.trim();
-  obj.Version = Number($("fVersion").value) || 1;
-  $("fJson").value = JSON.stringify(obj, null, 2);
-  return obj;
+  view = next;
+  $("viewForm").classList.toggle("primary", next === "form");
+  $("viewForm").classList.toggle("ghost",   next !== "form");
+  $("viewJson").classList.toggle("primary", next === "json");
+  $("viewJson").classList.toggle("ghost",   next !== "json");
 }
 
 /* ---------- JSON view helpers ---------- */
@@ -636,6 +916,82 @@ export function loadTemplate() {
   populateQuickFields();
 }
 
+/* ---------- Schema validation (runs before every save) ---------- */
+/* Returns an array of human-readable problems. Empty array = OK. */
+export function validateBody(obj, tabKey) {
+  const problems = [];
+  const isTrigger = tabKey === "triggers";
+  const singular = isTrigger ? "Trigger" : "Action";
+
+  if (!obj || typeof obj !== "object") {
+    return [`${singular} body must be a JSON object.`];
+  }
+
+  // ----- Required top-level fields -----
+  if (!obj.ID || !String(obj.ID).trim()) {
+    problems.push("An ID is required.");
+  }
+  if (!obj.Group || !String(obj.Group).trim()) {
+    problems.push("A Group is required.");
+  }
+  if (obj.Version == null || Number.isNaN(Number(obj.Version))) {
+    problems.push("A numeric Version is required.");
+  }
+
+  // Actions must define at least one Step.
+  if (!isTrigger) {
+    if (!Array.isArray(obj.Steps) || obj.Steps.length === 0) {
+      problems.push("Actions require at least one entry in Steps.");
+    }
+  }
+
+  // ----- Per-input validation -----
+  if (obj.Inputs != null && !Array.isArray(obj.Inputs)) {
+    problems.push("Inputs must be an array.");
+  } else if (Array.isArray(obj.Inputs)) {
+    obj.Inputs.forEach((inp, i) => {
+      const where = `Input #${i + 1}` + (inp && inp.ID ? ` ("${inp.ID}")` : "");
+
+      if (!inp || typeof inp !== "object") {
+        problems.push(`${where}: must be an object.`);
+        return;
+      }
+      if (!inp.ID || !String(inp.ID).trim()) {
+        problems.push(`${where}: an ID is required.`);
+      }
+      if (!inp.Label || !String(inp.Label).trim()) {
+        problems.push(`${where}: a Label is required.`);
+      }
+
+      // UIElementType must be one of the documented enum values.
+      if (!inp.UIElementType) {
+        problems.push(`${where}: UIElementType is required.`);
+      } else if (!VALID_UI_TYPES.has(inp.UIElementType)) {
+        problems.push(
+          `${where}: "${inp.UIElementType}" is not a valid UIElementType. ` +
+          `Use one of: ${UI_ELEMENT_TYPES.join(", ")}.`
+        );
+      }
+
+      // Mutual exclusivity: at most one value-source key allowed.
+      const present = SOURCE_KEYS.filter(k => inp[k] != null);
+      if (present.length > 1) {
+        problems.push(
+          `${where}: only one of ${SOURCE_KEYS.join(", ")} may be set ` +
+          `(found ${present.join(" + ")}).`
+        );
+      }
+
+      // A Switch should be backed by a BooleanInputSource.
+      if (inp.UIElementType === "Switch" && inp.BooleanInputSource == null) {
+        problems.push(`${where}: a Switch needs a BooleanInputSource.`);
+      }
+    });
+  }
+
+  return problems;
+}
+
 /* ---------- Save (create or update) ---------- */
 export async function saveItem() {
   if (view === "json") {
@@ -647,7 +1003,12 @@ export async function saveItem() {
     applyQuickFieldsToObj();
   }
 
-  if (!workingObj.ID) { setStatus("An ID is required.", "err"); return; }
+  // Local schema validation before hitting the server.
+  const problems = validateBody(workingObj, state.currentTab);
+  if (problems.length) {
+    setStatus("Cannot save — " + problems.join(" "), "err");
+    return;
+  }
 
   setStatus("Saving…", "info");
   try {
@@ -656,9 +1017,9 @@ export async function saveItem() {
       setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
       return;
     }
-    clearStatus();          // success is silent
+    setStatus(messagesFrom(json) || "Saved.", "ok");
     closeEditor();
-    await loadList();       // auto-refresh the grid
+    await loadList();
   } catch (e) {
     setStatus("Save failed: " + e.message, "err");
   }
@@ -679,8 +1040,8 @@ export async function deleteItem(item) {
       setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
       return;
     }
-    clearStatus();          // success is silent
-    await loadList();       // auto-refresh the grid
+    setStatus(messagesFrom(json) || "Deleted.", "ok");
+    await loadList();
   } catch (e) {
     setStatus("Delete failed: " + e.message, "err");
   }
@@ -689,7 +1050,7 @@ export async function deleteItem(item) {
 ----- END FILE: js/ui/editor.js -----
 
 ----- BEGIN FILE: js/ui/grid.js -----
-(sha1: aa56f7ba964d57381107e02ecb13c7bfb07a9b10)
+(sha1: 3fce209c84d8a718b40b6948ddd50dded3f1215f)
 
 "use strict";
 
@@ -709,10 +1070,7 @@ export function filteredItems() {
   return items;
 }
 
-/** Alias kept for clarity where row indices are resolved. */
-export function visibleItems() {
-  return filteredItems();
-}
+export function visibleItems() { return filteredItems(); }
 
 export function renderGrid() {
   const grid = $("grid");
@@ -744,38 +1102,80 @@ export function renderGrid() {
 ----- END FILE: js/ui/grid.js -----
 
 ----- BEGIN FILE: js/ui/status.js -----
-(sha1: a86137d14f661d6b6140b694751357cf79319239)
+(sha1: e7fd97e4445d32cb5d2b01747568c29053f1f298)
 
 "use strict";
 
 /* ============================================================
  * Status banner rendering.
+ *
+ * Messages normally show in the page-level banner (#status).
+ * BUT that banner lives in the main layout, behind the editor
+ * modal's overlay — so while the modal is open the user can't
+ * read it without closing the modal (and losing their edits).
+ *
+ * To fix that, setStatus() is context-aware:
+ *   - Modal open  -> route the message to the in-modal banner
+ *                    (#modalStatus, in the modal footer).
+ *   - Modal closed -> use the page-level banner (#status).
+ *
+ * Both banners share the same .status styling, so ok/err/info
+ * colors are identical in either location.
  * ========================================================== */
 
 import { $ } from "../core/utils.js";
 
+/* Is the editor modal currently visible? */
+function modalOpen() {
+  const ov = $("overlay");
+  return !!(ov && ov.classList.contains("show"));
+}
+
 export function setStatus(msg, type) {
+  const cls = "status modalstatus show " + (type || "info");
+  const pageCls = "status show " + (type || "info");
+
+  // Prefer the in-modal banner whenever the modal is open.
+  if (modalOpen()) {
+    const mel = document.getElementById("modalStatus");
+    if (mel) {
+      mel.textContent = msg;
+      mel.className = cls;
+      // Keep the page banner clean so nothing stale shows behind the modal.
+      const page = $("status");
+      if (page) page.className = "status";
+      return;
+    }
+  }
+
+  // Default: page-level banner.
   const el = $("status");
   el.textContent = msg;
-  el.className = "status show " + (type || "info");
+  el.className = pageCls;
 }
 
 export function clearStatus() {
-  const el = $("status");
-  el.textContent = "";
-  el.className = "status";
+  const page = $("status");
+  if (page) page.className = "status";
+
+  const mel = document.getElementById("modalStatus");
+  if (mel) {
+    mel.textContent = "";
+    mel.className = "status modalstatus";
+  }
 }
 
 ----- END FILE: js/ui/status.js -----
 
 ----- BEGIN FILE: js/ui/tabs.js -----
-(sha1: 872b4bc0cff680e0346db2a37268c68f6265d45c)
+(sha1: 7ca3317502658fe2bff7a4ad501e6c4366239316)
 
 "use strict";
 
-/* ============================================================
- * Tab switching between Triggers and Actions.
- * ========================================================== */
+/* Tab switching between Triggers and Actions.
+ *
+ * Renders instantly from cache, then always re-fetches so the
+ * grid is live without a manual Refresh button. */
 
 import { $ } from "../core/utils.js";
 import { state } from "../core/state.js";
@@ -799,6 +1199,233 @@ export function switchTab(tab) {
 }
 
 ----- END FILE: js/ui/tabs.js -----
+
+----- BEGIN FILE: js/ui/treeEditor.js -----
+(sha1: cfb334d0659509ce81cef73e7855d56792173c14)
+
+"use strict";
+
+/* ============================================================
+ * Recursive JSON tree editor. Mutates the supplied object in
+ * place; caller reads the live value via getData().
+ * ========================================================== */
+
+const TYPES = ["string", "number", "boolean", "object", "array", "null"];
+
+export function typeOf(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  return typeof v;
+}
+
+export function defaultFor(type) {
+  switch (type) {
+    case "number":  return 0;
+    case "boolean": return false;
+    case "object":  return {};
+    case "array":   return [];
+    case "null":    return null;
+    default:        return "";
+  }
+}
+
+export function uniqueKey(obj, base) {
+  let k = base, n = 2;
+  while (Object.prototype.hasOwnProperty.call(obj, k)) k = base + n++;
+  return k;
+}
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  if (attrs) {
+    for (const k in attrs) {
+      const v = attrs[k];
+      if (v == null) continue;
+      if (k === "class") node.className = v;
+      else if (k === "value") node.value = v;
+      else if (k.slice(0, 2) === "on" && typeof v === "function") {
+        node.addEventListener(k.slice(2).toLowerCase(), v);
+      } else {
+        node.setAttribute(k, v);
+      }
+    }
+  }
+  (children || []).forEach(c => {
+    if (c == null) return;
+    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  });
+  return node;
+}
+
+export function createTreeEditor(container, initial, onChange) {
+  let root = (initial && typeof initial === "object") ? initial : {};
+  const collapsed = new Set();
+
+  function commit() { if (onChange) onChange(root); }
+  function pathKey(path) { return path.join("\u0000"); }
+
+  function getParent(path) {
+    let node = root;
+    for (let i = 0; i < path.length - 1; i++) node = node[path[i]];
+    return node;
+  }
+  function getValue(path) {
+    let node = root;
+    for (let i = 0; i < path.length; i++) node = node[path[i]];
+    return node;
+  }
+
+  function setAt(path, value) {
+    if (path.length === 0) { root = value; return; }
+    getParent(path)[path[path.length - 1]] = value;
+  }
+
+  function removeAt(path) {
+    const parent = getParent(path);
+    const key = path[path.length - 1];
+    if (Array.isArray(parent)) parent.splice(key, 1);
+    else delete parent[key];
+    rerender(); commit();
+  }
+
+  function addChild(path) {
+    const node = path.length === 0 ? root : getValue(path);
+    if (Array.isArray(node)) node.push("");
+    else node[uniqueKey(node, "newField")] = "";
+    collapsed.delete(pathKey(path));
+    rerender(); commit();
+  }
+
+  function changeType(path, newType) {
+    setAt(path, defaultFor(newType));
+    rerender(); commit();
+  }
+
+  function renameKey(path, newName) {
+    const parent = getParent(path);
+    const oldKey = path[path.length - 1];
+    const trimmed = String(newName).trim();
+    if (!trimmed || trimmed === oldKey) { rerender(); return; }
+    const rebuilt = {};
+    for (const k in parent) {
+      if (k === oldKey) rebuilt[uniqueKey(rebuilt, trimmed)] = parent[k];
+      else rebuilt[k] = parent[k];
+    }
+    for (const k in parent) delete parent[k];
+    Object.assign(parent, rebuilt);
+    rerender(); commit();
+  }
+
+  function renderRow(value, path, keyName, inArray) {
+    const t = typeOf(value);
+    const isBranch = (t === "object" || t === "array");
+    const pk = pathKey(path);
+    const isCollapsed = collapsed.has(pk);
+
+    const row = el("div", { class: "tnode" });
+    const head = el("div", { class: "trow" });
+
+    if (isBranch) {
+      head.appendChild(el("button", {
+        class: "tbtn ttoggle", type: "button",
+        onclick: () => { isCollapsed ? collapsed.delete(pk) : collapsed.add(pk); rerender(); }
+      }, [isCollapsed ? "\u25B8" : "\u25BE"]));
+    } else {
+      head.appendChild(el("span", { class: "tspacer" }));
+    }
+
+    if (inArray) {
+      head.appendChild(el("span", { class: "tindex" }, ["[" + keyName + "]"]));
+    } else {
+      head.appendChild(el("input", {
+        class: "tkey", value: String(keyName), title: "Property name",
+        onchange: e => renameKey(path, e.target.value)
+      }));
+    }
+
+    head.appendChild(el("select", {
+      class: "ttype", title: "Field type",
+      onchange: e => changeType(path, e.target.value)
+    }, TYPES.map(tp => {
+      const o = el("option", { value: tp }, [tp]);
+      if (tp === t) o.selected = true;
+      return o;
+    })));
+
+    if (t === "string") {
+      head.appendChild(el("input", {
+        class: "tval", value: value,
+        oninput: e => { setAt(path, e.target.value); commit(); }
+      }));
+    } else if (t === "number") {
+      head.appendChild(el("input", {
+        class: "tval", type: "number", value: String(value),
+        oninput: e => { setAt(path, e.target.value === "" ? 0 : Number(e.target.value)); commit(); }
+      }));
+    } else if (t === "boolean") {
+      const cb = el("input", { class: "tcheck", type: "checkbox" });
+      cb.checked = !!value;
+      cb.addEventListener("change", e => { setAt(path, e.target.checked); commit(); });
+      head.appendChild(cb);
+    } else if (t === "null") {
+      head.appendChild(el("span", { class: "tnull" }, ["null"]));
+    } else {
+      const count = t === "array" ? value.length : Object.keys(value).length;
+      head.appendChild(el("span", { class: "tsummary" },
+        [t === "array" ? `${count} item(s)` : `${count} field(s)`]));
+      head.appendChild(el("button", {
+        class: "tbtn tadd", type: "button",
+        onclick: () => addChild(path)
+      }, [t === "array" ? "+ item" : "+ field"]));
+    }
+
+    head.appendChild(el("button", {
+      class: "tbtn tdel", type: "button", title: "Remove",
+      onclick: () => removeAt(path)
+    }, ["\u2715"]));
+
+    row.appendChild(head);
+
+    if (isBranch && !isCollapsed) {
+      const kids = el("div", { class: "tkids" });
+      if (t === "array") {
+        value.forEach((item, i) => kids.appendChild(renderRow(item, path.concat(i), i, true)));
+      } else {
+        Object.keys(value).forEach(k => kids.appendChild(renderRow(value[k], path.concat(k), k, false)));
+      }
+      row.appendChild(kids);
+    }
+
+    return row;
+  }
+
+  function rerender() {
+    container.innerHTML = "";
+    const t = typeOf(root);
+    if (t === "object") {
+      Object.keys(root).forEach(k => container.appendChild(renderRow(root[k], [k], k, false)));
+    } else if (t === "array") {
+      root.forEach((item, i) => container.appendChild(renderRow(item, [i], i, true)));
+    }
+    container.appendChild(el("button", {
+      class: "tbtn tadd troot", type: "button",
+      onclick: () => addChild([])
+    }, [t === "array" ? "+ item" : "+ field"]));
+  }
+
+  rerender();
+  return {
+    getData: () => root,
+    setData: obj => {
+      root = (obj && typeof obj === "object") ? obj : {};
+      collapsed.clear();
+      rerender();
+    },
+    render: rerender
+  };
+}
+
+----- END FILE: js/ui/treeEditor.js -----
 
 ## Included files
 css/styles.css

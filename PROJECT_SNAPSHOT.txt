@@ -1,9 +1,9 @@
 # Project Snapshot
-Generated: 2026-07-27T15:33:47Z
-Commit: a147bfb
+Generated: 2026-07-27T15:52:55Z
+Commit: e7168c4
 
 ----- BEGIN FILE: css/styles.css -----
-(sha1: 343e082f491bab76438a86ca11e43705c93f13e0)
+(sha1: 96919b47aadfb125cdec213b745951a61732dfa2)
 
 :root{
   --bg:#e8edf4; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
@@ -30,6 +30,7 @@ button.danger:hover{background:var(--danger-dk)}
 button.ghost{background:transparent;border-color:var(--border)}
 button.sm{padding:4px 9px;font-size:12px}
 button:disabled{opacity:.5;cursor:not-allowed}
+select:disabled{opacity:.5;cursor:not-allowed;background:#f3f5f8}
 
 main{max-width:none;margin:0;padding:16px 24px}
 
@@ -80,6 +81,7 @@ tr:hover td{background:#f7f9fb}
 .jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
 textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
+.hint code,.adderhint code{font-family:Consolas,"Courier New",monospace;font-size:12px;background:#eef2f7;border:1px solid var(--border);border-radius:3px;padding:0 4px}
 .tplbtns{display:flex;gap:6px}
 .close{background:transparent;border:none;font-size:20px;line-height:1;padding:2px 8px;color:var(--muted)}
 .close:hover{color:var(--text)}
@@ -88,11 +90,14 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 .viewtoggle{display:flex;gap:4px}
 
 /* ---------- type-aware Input picker ---------- */
-.inputadder{display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:8px;
+/* flex-wrap lets the expanded row (type + source + expression)
+   flow onto a second line gracefully in a narrow modal. */
+.inputadder{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;margin-bottom:8px;
   background:#f7f9fb;border:1px solid var(--border);border-radius:6px}
 .inputadder label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
 .inputadder .inputtype{padding:5px 8px;min-width:150px}
-.inputadder .adderhint{font-size:12px;color:var(--muted);flex:1}
+.inputadder .visibleexpr{flex:1;min-width:240px;padding:5px 8px}
+.inputadder .adderhint{font-size:12px;color:var(--muted);flex-basis:100%}
 
 /* ---------- recursive tree editor ---------- */
 .tree{border:1px solid var(--border);border-radius:6px;padding:8px;max-height:340px;overflow:auto;background:#fff}
@@ -119,7 +124,7 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 ----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: b94bf23e39b6dee7a27a5d1f790e11f226826479)
+(sha1: 430baf7c074011bdf8b7ecbff9a4de329d899379)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -198,8 +203,27 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
         <div class="inputadder" id="inputAdder">
           <label for="inputType">Add Input</label>
           <select id="inputType" class="inputtype" title="Choose a UIElementType to scaffold"></select>
+
+          <label for="inputSource">Source</label>
+          <select id="inputSource" class="inputtype"
+              title="Where the choices come from (choice fields only)">
+            <option value="hardcoded">Hardcoded values</option>
+            <option value="query">Object Manager query</option>
+          </select>
+
           <button class="sm ghost" id="addInput" type="button">+ Add Input</button>
-          <span class="adderhint">Scaffolds the right sub-fields for the chosen UIElementType, then edit below.</span>
+
+          <!-- Optional conditional-visibility rule for the next input added -->
+          <label for="visibleExpr">Visible when</label>
+          <input id="visibleExpr" class="mono visibleexpr"
+              placeholder="@action.inputs.&lt;other-input-id&gt;.value == 'value'" />
+          <button class="sm ghost" id="visibleExprTpl" type="button" title="Insert a starter expression">Expr</button>
+
+          <span class="adderhint">
+            <strong>Source</strong> applies to choice fields (Dropdown, MultiCheckbox, RadioButtons).
+            <strong>Visible when</strong> is optional and adds a VisibleExpression rule to the input you add
+            (e.g. <code>@action.inputs.set-field-on-all.value == 'false'</code>).
+          </span>
         </div>
 
         <!-- Form view: recursive field editor -->
@@ -448,38 +472,33 @@ export function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 ----- END FILE: js/core/utils.js -----
 
 ----- BEGIN FILE: js/data/inputTemplates.js -----
-(sha1: 8a594976e577c8e6f5a7f10050364a36933d983f)
+(sha1: f1e3ae668dbf1e674c0d31f9a580ea863478066f)
 
 "use strict";
 
 /* ============================================================
  * Type-aware Input scaffolds for each UIElementType.
  *
- * Picking a UIElementType inserts an Input object pre-shaped
- * with exactly the sub-fields that element type needs, based on
- * the Automated Workflows REST schema (UIElementType enum):
+ * Valid UIElementType values (documented enum):
+ *   Dropdown, MultiCheckbox, RadioButtons, Email, Switch, Hidden
  *
- *   Dropdown       single-select list; backed by InputSources OR
- *                  ObjectManagerQueryInputSource (mutually exclusive)
- *   MultiCheckbox  multiple checkboxes; backed by InputSources,
- *                  each option may nest Children
- *   RadioButtons   single-select radio list; backed by InputSources
- *   Email          email entry, multiple addresses separated by ";"
- *   Switch         Boolean toggle; backed by a BooleanInputSource
- *   Hidden         not shown to the user; carries a default value
+ * Two schema features are supported at scaffold time:
  *
- * NOTE: "Text" and "Number" are NOT valid UIElementType values in
- * the documented schema and have been removed. Free text is entered
- * through the schema's supported element types above.
+ *  1) Value-source toggle for choice fields
+ *     (Dropdown / MultiCheckbox / RadioButtons):
+ *       - "hardcoded" -> InputSources: [{Label,Value}, ...]
+ *       - "query"     -> ObjectManagerQueryInputSource, which
+ *                        populates choices from a live Object
+ *                        Manager query.
+ *     The schema allows AT MOST ONE of InputSources /
+ *     ObjectManagerQueryInputSource / BooleanInputSource per
+ *     input, so applySourceMode() strips the others first.
  *
- * The schema also requires that an input carry AT MOST ONE of:
- *   InputSources | ObjectManagerQueryInputSource | BooleanInputSource
- * Each scaffold below respects that rule.
- *
- * Every scaffold carries the common Input fields (Label, ID,
- * UIElementType) and a Properties object so a dynamic-rule
- * VisibleExpression can be added later. The tree editor then
- * lets the user fine-tune any value or nest further.
+ *  2) Conditional visibility via Properties.VisibleExpression.
+ *     Verified grammar (from the REST "Dynamic Rule" example):
+ *       @action.inputs.<other-input-id>.value == 'value'
+ *     i.e. the "@action.inputs." prefix + the source input's ID
+ *     + ".value", the == operator, and single-quoted literals.
  * ========================================================== */
 
 /* Valid UIElementType values, in the order shown in the picker. */
@@ -492,6 +511,10 @@ export const UI_ELEMENT_TYPES = [
   "Hidden"
 ];
 
+/* The choice types that support a value source
+   (hardcoded InputSources OR an Object Manager query). */
+export const CHOICE_TYPES = new Set(["Dropdown", "MultiCheckbox", "RadioButtons"]);
+
 /* Short human descriptions for the picker's title/help. */
 export const UI_ELEMENT_HELP = {
   Dropdown:      "Single-select list. Values from a hardcoded list or an Object Manager query.",
@@ -502,14 +525,28 @@ export const UI_ELEMENT_HELP = {
   Hidden:        "Not shown to the user; carries a default value only."
 };
 
-/* A reusable Object Manager query source (for dynamic dropdowns).
-   Exported so the editor can swap a Dropdown's source on demand. */
+/* Default hardcoded choices for a choice-type input. */
+export function defaultChoicesFor(uiType) {
+  const a = uiType === "MultiCheckbox" ? "Choice 1" : "Option 1";
+  const b = uiType === "MultiCheckbox" ? "Choice 2" : "Option 2";
+  const av = uiType === "MultiCheckbox" ? "choice1" : "option1";
+  const bv = uiType === "MultiCheckbox" ? "choice2" : "option2";
+  return [
+    { Label: a, Value: av },
+    { Label: b, Value: bv }
+  ];
+}
+
+/* A reusable Object Manager query source (dynamic choices).
+   ArtifactTypeID 15 = Saved Search (matches the documented
+   example). You can instead identify the object type by Guid;
+   set one or both, then refine Condition as needed. */
 export function makeObjectManagerSource() {
   return {
     LabelFieldName: "Name",
     ValueFieldName: "ArtifactID",
-    ArtifactTypeID: 10,          // set to the target object type; or use Guid instead
-    Condition: ""                // Object Manager query language condition
+    ArtifactTypeID: 15,        // or use "Guid": "<object-type-guid>"
+    Condition: ""              // Object Manager query language condition
   };
 }
 
@@ -531,59 +568,82 @@ export function makeChildChoice() {
   };
 }
 
+/* Enforce the mutual-exclusivity rule and set the chosen source.
+   mode: "hardcoded" | "query". Safe to call repeatedly to flip
+   an input between the two without leaving a stale source object. */
+export function applySourceMode(input, mode, uiType) {
+  delete input.InputSources;
+  delete input.ObjectManagerQueryInputSource;
+  delete input.BooleanInputSource;
+
+  if (mode === "query") {
+    input.ObjectManagerQueryInputSource = makeObjectManagerSource();
+  } else {
+    input.InputSources = defaultChoicesFor(uiType || input.UIElementType);
+  }
+  return input;
+}
+
+/* Set (or clear) a conditional-visibility rule on an input.
+   Passing an empty expression removes the rule. */
+export function setVisibleExpression(input, expr) {
+  if (!input.Properties || typeof input.Properties !== "object") input.Properties = {};
+  const trimmed = String(expr || "").trim();
+  if (trimmed) input.Properties.VisibleExpression = trimmed;
+  else delete input.Properties.VisibleExpression;
+  return input;
+}
+
+/* Build a VisibleExpression string in the verified grammar.
+   entity is the current tab ("actions" | "triggers"); the
+   documented example is for actions (@action.inputs...). */
+export function buildVisibleExpression(entity, sourceInputId, value) {
+  const scope = entity === "triggers" ? "trigger" : "action";
+  const id = sourceInputId || "<other-input-id>";
+  const val = value != null ? value : "value";
+  return `@${scope}.inputs.${id}.value == '${val}'`;
+}
+
 /* Build a fresh Input object for the given UIElementType.
-   idSuffix (optional) is appended to the default ID to help
-   keep IDs unique when several are added quickly. */
-export function makeInput(uiType, idSuffix) {
+   opts:
+     sourceMode        "hardcoded" | "query" (choice types only)
+     visibleExpression string to drop into Properties
+     entity            "actions" | "triggers" (reserved) */
+export function makeInput(uiType, idSuffix, opts) {
+  const o = opts || {};
+  const sourceMode = o.sourceMode === "query" ? "query" : "hardcoded";
+  const visibleExpression = o.visibleExpression || "";
+
   const suffix = idSuffix != null ? String(idSuffix) : "";
   const base = {
     Label: `New ${uiType}`,
     ID: `new-${uiType.toLowerCase()}${suffix}`,
     UIElementType: uiType,
-    Properties: {}    // add "VisibleExpression": "..." here for dynamic rules
+    Properties: {}    // VisibleExpression may be added below
   };
 
+  let input;
   switch (uiType) {
     case "Dropdown":
-      // Hardcoded values by default; swap InputSources for
-      // ObjectManagerQueryInputSource for a dynamic, query-backed list.
-      return {
-        ...base,
-        Placeholder: "",
-        InputSources: [
-          makeInputSource("Option 1", "option1"),
-          makeInputSource("Option 2", "option2")
-        ]
-      };
+      input = { ...base, Placeholder: "Select" };
+      applySourceMode(input, sourceMode, uiType);
+      break;
 
     case "RadioButtons":
-      return {
-        ...base,
-        InputSources: [
-          makeInputSource("Option 1", "option1"),
-          makeInputSource("Option 2", "option2")
-        ]
-      };
-
     case "MultiCheckbox":
-      return {
-        ...base,
-        InputSources: [
-          makeInputSource("Choice 1", "choice1"),
-          makeInputSource("Choice 2", "choice2")
-        ]
-      };
+      input = { ...base };
+      applySourceMode(input, sourceMode, uiType);
+      break;
 
     case "Email":
-      return {
-        ...base,
-        Placeholder: "Enter email addresses separated by a semicolon (;)"
-      };
+      input = { ...base, Placeholder: "Enter email addresses separated by a semicolon (;)" };
+      break;
 
     case "Switch":
       // Backed by a BooleanInputSource (NOT InputSources).
-      return {
+      input = {
         ...base,
+        DefaultValue: "false",
         BooleanInputSource: {
           TrueLabel: "Yes",
           FalseLabel: "No",
@@ -591,19 +651,18 @@ export function makeInput(uiType, idSuffix) {
           FalseValue: "false"
         }
       };
+      break;
 
     case "Hidden":
-      // No source object; just a default value carried silently.
-      return {
-        ...base,
-        DefaultValue: ""
-      };
+      input = { ...base, DefaultValue: "" };
+      break;
 
     default:
-      // Unknown type: return the common base so the tree editor
-      // can still expose it; validation will flag it on save.
-      return base;
+      input = base;
   }
+
+  if (visibleExpression) setVisibleExpression(input, visibleExpression);
+  return input;
 }
 
 ----- END FILE: js/data/inputTemplates.js -----
@@ -731,7 +790,7 @@ export async function deleteEntity(tabKey, item) {
 ----- END FILE: js/services/entityService.js -----
 
 ----- BEGIN FILE: js/ui/editor.js -----
-(sha1: 4cb87bf1dd2002ab09ef59affe6a50c715cf6d1c)
+(sha1: 1d4530c546e907dc445dfa37bd01a31e39607b31)
 
 "use strict";
 
@@ -744,17 +803,15 @@ export async function deleteEntity(tabKey, item) {
  *   "JSON" view : the raw textarea escape hatch.
  *
  * The "Add Input" picker scaffolds a correctly-shaped Input for
- * the chosen UIElementType (Dropdown, MultiCheckbox, RadioButtons,
- * Email, Switch, Hidden) and drops it into the Inputs array;
- * the tree editor then handles fine-tuning and nesting.
+ * the chosen UIElementType. For choice types (Dropdown,
+ * MultiCheckbox, RadioButtons) a Source selector chooses between
+ * hardcoded InputSources and an Object Manager query. An optional
+ * "Visible when" expression is dropped into Properties as a
+ * VisibleExpression conditional-visibility rule.
  *
  * Before every save, validateBody() checks the working object
  * against the Automated Workflows schema so the server isn't
- * handed a body it will reject:
- *   - required top-level fields (ID, Group; Steps for actions)
- *   - every Input has a valid UIElementType
- *   - every Input carries AT MOST ONE of InputSources /
- *     ObjectManagerQueryInputSource / BooleanInputSource
+ * handed a body it will reject.
  *
  * workingObj is the single source of truth.
  * ========================================================== */
@@ -765,16 +822,19 @@ import { ENTITY } from "../config/settings.js";
 import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
 import { templateFor } from "../data/templates.js";
-import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
+import {
+  UI_ELEMENT_TYPES, UI_ELEMENT_HELP, CHOICE_TYPES,
+  makeInput, buildVisibleExpression
+} from "../data/inputTemplates.js";
 import { setStatus } from "./status.js";
 import { loadList } from "../features/list.js";
 import { createTreeEditor } from "./treeEditor.js";
 
 const QUICK_FIELDS = ["fLabel", "fId", "fGroup", "fVersion"];
 
-/* The only element types the server accepts. Kept as a Set for
-   O(1) validation and derived from the shared picker list so the
-   two never drift apart. */
+/* The only element types the server accepts, as a Set for O(1)
+   validation, derived from the shared picker list so the two
+   never drift apart. */
 const VALID_UI_TYPES = new Set(UI_ELEMENT_TYPES);
 
 /* The three mutually-exclusive value-source keys for an Input. */
@@ -818,15 +878,65 @@ function populateInputTypePicker() {
   });
 }
 
+/* ---------- Enable/disable the Source selector by type ---------- */
+/* The value source only applies to choice fields. For non-choice
+   types (Email/Switch/Hidden) the selector is disabled and reset. */
+function updateAdderControls() {
+  const uiType = $("inputType").value;
+  const isChoice = CHOICE_TYPES.has(uiType);
+  const src = $("inputSource");
+  if (src) {
+    src.disabled = !isChoice;
+    if (!isChoice) src.value = "hardcoded";
+    src.title = isChoice
+      ? "Where the choices come from"
+      : "Only applies to choice fields (Dropdown, MultiCheckbox, RadioButtons)";
+  }
+}
+
 /* ---------- Add a type-aware Input to workingObj.Inputs ---------- */
 function addInput() {
   const uiType = $("inputType").value || "Dropdown";
+  const sourceMode = ($("inputSource") && !$("inputSource").disabled)
+    ? $("inputSource").value
+    : "hardcoded";
+  const visibleExpr = $("visibleExpr") ? $("visibleExpr").value.trim() : "";
+
   if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
   // Suffix helps keep default IDs distinct when adding several quickly.
   const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
-  workingObj.Inputs.push(makeInput(uiType, suffix));
+
+  workingObj.Inputs.push(makeInput(uiType, suffix, {
+    sourceMode,
+    visibleExpression: visibleExpr,
+    entity: state.currentTab
+  }));
+
+  // One-shot: clear the expression field so it doesn't silently
+  // attach to the next input the user adds.
+  if ($("visibleExpr")) $("visibleExpr").value = "";
+
   tree.render();
-  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
+
+  const bits = [`Added a ${uiType} input`];
+  if (CHOICE_TYPES.has(uiType)) {
+    bits.push(sourceMode === "query" ? "with an Object Manager query source" : "with hardcoded values");
+  }
+  if (visibleExpr) bits.push("and a visibility rule");
+  setStatus(bits.join(" ") + ". Edit its fields below.", "info");
+}
+
+/* Insert a starter VisibleExpression into the "Visible when" field,
+   referencing the first other input if one exists. */
+function insertVisibleExprTemplate() {
+  const el = $("visibleExpr");
+  if (!el) return;
+  let sourceId = "";
+  if (Array.isArray(workingObj.Inputs) && workingObj.Inputs.length) {
+    sourceId = workingObj.Inputs[0].ID || "";
+  }
+  el.value = buildVisibleExpression(state.currentTab, sourceId, "value");
+  el.focus();
 }
 
 /* ---------- One-time wiring of tree + listeners ---------- */
@@ -842,7 +952,10 @@ function ensureWired() {
     });
   });
   populateInputTypePicker();
+  updateAdderControls();
+  $("inputType").addEventListener("change", updateAdderControls);
   $("addInput").addEventListener("click", addInput);
+  if ($("visibleExprTpl")) $("visibleExprTpl").addEventListener("click", insertVisibleExprTemplate);
   wired = true;
 }
 
@@ -857,6 +970,8 @@ export function openEditor(existingItem) {
   ensureWired();
   tree.setData(workingObj);
   populateQuickFields();
+  updateAdderControls();
+  if ($("visibleExpr")) $("visibleExpr").value = "";
   setView("form");
 
   $("overlay").classList.add("show");
@@ -959,16 +1074,17 @@ export function validateBody(obj, tabKey) {
       if (!inp.ID || !String(inp.ID).trim()) {
         problems.push(`${where}: an ID is required.`);
       }
-      if (!inp.Label || !String(inp.Label).trim()) {
+      if (!inp.Label && inp.UIElementType !== "Hidden") {
         problems.push(`${where}: a Label is required.`);
       }
 
       // UIElementType must be one of the documented enum values.
-      if (!inp.UIElementType) {
+      const uiType = inp.UIElementType;
+      if (!uiType) {
         problems.push(`${where}: UIElementType is required.`);
-      } else if (!VALID_UI_TYPES.has(inp.UIElementType)) {
+      } else if (!VALID_UI_TYPES.has(uiType)) {
         problems.push(
-          `${where}: "${inp.UIElementType}" is not a valid UIElementType. ` +
+          `${where}: "${uiType}" is not a valid UIElementType. ` +
           `Use one of: ${UI_ELEMENT_TYPES.join(", ")}.`
         );
       }
@@ -982,9 +1098,42 @@ export function validateBody(obj, tabKey) {
         );
       }
 
+      // Source-key placement rules.
+      const isChoice = CHOICE_TYPES.has(uiType);
+      if (inp.InputSources != null) {
+        if (!isChoice) {
+          problems.push(`${where}: InputSources only applies to a choice field (Dropdown, MultiCheckbox, RadioButtons).`);
+        } else if (!Array.isArray(inp.InputSources) || inp.InputSources.length === 0) {
+          problems.push(`${where}: InputSources must be a non-empty array.`);
+        }
+      }
+      if (inp.ObjectManagerQueryInputSource != null) {
+        if (!isChoice) {
+          problems.push(`${where}: ObjectManagerQueryInputSource only applies to a choice field.`);
+        } else {
+          const q = inp.ObjectManagerQueryInputSource;
+          if (!q.LabelFieldName) problems.push(`${where}: query source needs a LabelFieldName.`);
+          if (!q.ValueFieldName) problems.push(`${where}: query source needs a ValueFieldName.`);
+          if (q.ArtifactTypeID == null && !q.Guid) {
+            problems.push(`${where}: query source needs an ArtifactTypeID or a Guid.`);
+          }
+        }
+      }
+      if (inp.BooleanInputSource != null && uiType !== "Switch") {
+        problems.push(`${where}: BooleanInputSource only applies to a Switch.`);
+      }
+
       // A Switch should be backed by a BooleanInputSource.
-      if (inp.UIElementType === "Switch" && inp.BooleanInputSource == null) {
+      if (uiType === "Switch" && inp.BooleanInputSource == null) {
         problems.push(`${where}: a Switch needs a BooleanInputSource.`);
+      }
+
+      // VisibleExpression, if present, must be a non-empty string.
+      if (inp.Properties && inp.Properties.VisibleExpression != null) {
+        const ve = inp.Properties.VisibleExpression;
+        if (typeof ve !== "string" || !ve.trim()) {
+          problems.push(`${where}: VisibleExpression must be a non-empty string.`);
+        }
       }
     });
   }

@@ -3,31 +3,26 @@
 /* ============================================================
  * Type-aware Input scaffolds for each UIElementType.
  *
- * Picking a UIElementType inserts an Input object pre-shaped
- * with exactly the sub-fields that element type needs, based on
- * the Automated Workflows REST schema (UIElementType enum):
+ * Valid UIElementType values (documented enum):
+ *   Dropdown, MultiCheckbox, RadioButtons, Email, Switch, Hidden
  *
- *   Dropdown       single-select list; backed by InputSources OR
- *                  ObjectManagerQueryInputSource (mutually exclusive)
- *   MultiCheckbox  multiple checkboxes; backed by InputSources,
- *                  each option may nest Children
- *   RadioButtons   single-select radio list; backed by InputSources
- *   Email          email entry, multiple addresses separated by ";"
- *   Switch         Boolean toggle; backed by a BooleanInputSource
- *   Hidden         not shown to the user; carries a default value
+ * Two schema features are supported at scaffold time:
  *
- * NOTE: "Text" and "Number" are NOT valid UIElementType values in
- * the documented schema and have been removed. Free text is entered
- * through the schema's supported element types above.
+ *  1) Value-source toggle for choice fields
+ *     (Dropdown / MultiCheckbox / RadioButtons):
+ *       - "hardcoded" -> InputSources: [{Label,Value}, ...]
+ *       - "query"     -> ObjectManagerQueryInputSource, which
+ *                        populates choices from a live Object
+ *                        Manager query.
+ *     The schema allows AT MOST ONE of InputSources /
+ *     ObjectManagerQueryInputSource / BooleanInputSource per
+ *     input, so applySourceMode() strips the others first.
  *
- * The schema also requires that an input carry AT MOST ONE of:
- *   InputSources | ObjectManagerQueryInputSource | BooleanInputSource
- * Each scaffold below respects that rule.
- *
- * Every scaffold carries the common Input fields (Label, ID,
- * UIElementType) and a Properties object so a dynamic-rule
- * VisibleExpression can be added later. The tree editor then
- * lets the user fine-tune any value or nest further.
+ *  2) Conditional visibility via Properties.VisibleExpression.
+ *     Verified grammar (from the REST "Dynamic Rule" example):
+ *       @action.inputs.<other-input-id>.value == 'value'
+ *     i.e. the "@action.inputs." prefix + the source input's ID
+ *     + ".value", the == operator, and single-quoted literals.
  * ========================================================== */
 
 /* Valid UIElementType values, in the order shown in the picker. */
@@ -40,6 +35,10 @@ export const UI_ELEMENT_TYPES = [
   "Hidden"
 ];
 
+/* The choice types that support a value source
+   (hardcoded InputSources OR an Object Manager query). */
+export const CHOICE_TYPES = new Set(["Dropdown", "MultiCheckbox", "RadioButtons"]);
+
 /* Short human descriptions for the picker's title/help. */
 export const UI_ELEMENT_HELP = {
   Dropdown:      "Single-select list. Values from a hardcoded list or an Object Manager query.",
@@ -50,14 +49,28 @@ export const UI_ELEMENT_HELP = {
   Hidden:        "Not shown to the user; carries a default value only."
 };
 
-/* A reusable Object Manager query source (for dynamic dropdowns).
-   Exported so the editor can swap a Dropdown's source on demand. */
+/* Default hardcoded choices for a choice-type input. */
+export function defaultChoicesFor(uiType) {
+  const a = uiType === "MultiCheckbox" ? "Choice 1" : "Option 1";
+  const b = uiType === "MultiCheckbox" ? "Choice 2" : "Option 2";
+  const av = uiType === "MultiCheckbox" ? "choice1" : "option1";
+  const bv = uiType === "MultiCheckbox" ? "choice2" : "option2";
+  return [
+    { Label: a, Value: av },
+    { Label: b, Value: bv }
+  ];
+}
+
+/* A reusable Object Manager query source (dynamic choices).
+   ArtifactTypeID 15 = Saved Search (matches the documented
+   example). You can instead identify the object type by Guid;
+   set one or both, then refine Condition as needed. */
 export function makeObjectManagerSource() {
   return {
     LabelFieldName: "Name",
     ValueFieldName: "ArtifactID",
-    ArtifactTypeID: 10,          // set to the target object type; or use Guid instead
-    Condition: ""                // Object Manager query language condition
+    ArtifactTypeID: 15,        // or use "Guid": "<object-type-guid>"
+    Condition: ""              // Object Manager query language condition
   };
 }
 
@@ -79,59 +92,82 @@ export function makeChildChoice() {
   };
 }
 
+/* Enforce the mutual-exclusivity rule and set the chosen source.
+   mode: "hardcoded" | "query". Safe to call repeatedly to flip
+   an input between the two without leaving a stale source object. */
+export function applySourceMode(input, mode, uiType) {
+  delete input.InputSources;
+  delete input.ObjectManagerQueryInputSource;
+  delete input.BooleanInputSource;
+
+  if (mode === "query") {
+    input.ObjectManagerQueryInputSource = makeObjectManagerSource();
+  } else {
+    input.InputSources = defaultChoicesFor(uiType || input.UIElementType);
+  }
+  return input;
+}
+
+/* Set (or clear) a conditional-visibility rule on an input.
+   Passing an empty expression removes the rule. */
+export function setVisibleExpression(input, expr) {
+  if (!input.Properties || typeof input.Properties !== "object") input.Properties = {};
+  const trimmed = String(expr || "").trim();
+  if (trimmed) input.Properties.VisibleExpression = trimmed;
+  else delete input.Properties.VisibleExpression;
+  return input;
+}
+
+/* Build a VisibleExpression string in the verified grammar.
+   entity is the current tab ("actions" | "triggers"); the
+   documented example is for actions (@action.inputs...). */
+export function buildVisibleExpression(entity, sourceInputId, value) {
+  const scope = entity === "triggers" ? "trigger" : "action";
+  const id = sourceInputId || "<other-input-id>";
+  const val = value != null ? value : "value";
+  return `@${scope}.inputs.${id}.value == '${val}'`;
+}
+
 /* Build a fresh Input object for the given UIElementType.
-   idSuffix (optional) is appended to the default ID to help
-   keep IDs unique when several are added quickly. */
-export function makeInput(uiType, idSuffix) {
+   opts:
+     sourceMode        "hardcoded" | "query" (choice types only)
+     visibleExpression string to drop into Properties
+     entity            "actions" | "triggers" (reserved) */
+export function makeInput(uiType, idSuffix, opts) {
+  const o = opts || {};
+  const sourceMode = o.sourceMode === "query" ? "query" : "hardcoded";
+  const visibleExpression = o.visibleExpression || "";
+
   const suffix = idSuffix != null ? String(idSuffix) : "";
   const base = {
     Label: `New ${uiType}`,
     ID: `new-${uiType.toLowerCase()}${suffix}`,
     UIElementType: uiType,
-    Properties: {}    // add "VisibleExpression": "..." here for dynamic rules
+    Properties: {}    // VisibleExpression may be added below
   };
 
+  let input;
   switch (uiType) {
     case "Dropdown":
-      // Hardcoded values by default; swap InputSources for
-      // ObjectManagerQueryInputSource for a dynamic, query-backed list.
-      return {
-        ...base,
-        Placeholder: "",
-        InputSources: [
-          makeInputSource("Option 1", "option1"),
-          makeInputSource("Option 2", "option2")
-        ]
-      };
+      input = { ...base, Placeholder: "Select" };
+      applySourceMode(input, sourceMode, uiType);
+      break;
 
     case "RadioButtons":
-      return {
-        ...base,
-        InputSources: [
-          makeInputSource("Option 1", "option1"),
-          makeInputSource("Option 2", "option2")
-        ]
-      };
-
     case "MultiCheckbox":
-      return {
-        ...base,
-        InputSources: [
-          makeInputSource("Choice 1", "choice1"),
-          makeInputSource("Choice 2", "choice2")
-        ]
-      };
+      input = { ...base };
+      applySourceMode(input, sourceMode, uiType);
+      break;
 
     case "Email":
-      return {
-        ...base,
-        Placeholder: "Enter email addresses separated by a semicolon (;)"
-      };
+      input = { ...base, Placeholder: "Enter email addresses separated by a semicolon (;)" };
+      break;
 
     case "Switch":
       // Backed by a BooleanInputSource (NOT InputSources).
-      return {
+      input = {
         ...base,
+        DefaultValue: "false",
         BooleanInputSource: {
           TrueLabel: "Yes",
           FalseLabel: "No",
@@ -139,17 +175,16 @@ export function makeInput(uiType, idSuffix) {
           FalseValue: "false"
         }
       };
+      break;
 
     case "Hidden":
-      // No source object; just a default value carried silently.
-      return {
-        ...base,
-        DefaultValue: ""
-      };
+      input = { ...base, DefaultValue: "" };
+      break;
 
     default:
-      // Unknown type: return the common base so the tree editor
-      // can still expose it; validation will flag it on save.
-      return base;
+      input = base;
   }
+
+  if (visibleExpression) setVisibleExpression(input, visibleExpression);
+  return input;
 }

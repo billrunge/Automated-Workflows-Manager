@@ -75,8 +75,27 @@
         <div class="inputadder" id="inputAdder">
           <label for="inputType">Add Input</label>
           <select id="inputType" class="inputtype" title="Choose a UIElementType to scaffold"></select>
+
+          <label for="inputSource">Source</label>
+          <select id="inputSource" class="inputtype"
+              title="Where the choices come from (choice fields only)">
+            <option value="hardcoded">Hardcoded values</option>
+            <option value="query">Object Manager query</option>
+          </select>
+
           <button class="sm ghost" id="addInput" type="button">+ Add Input</button>
-          <span class="adderhint">Scaffolds the right sub-fields for the chosen UIElementType, then edit below.</span>
+
+          <!-- Optional conditional-visibility rule for the next input added -->
+          <label for="visibleExpr">Visible when</label>
+          <input id="visibleExpr" class="mono visibleexpr"
+              placeholder="@action.inputs.&lt;other-input-id&gt;.value == 'value'" />
+          <button class="sm ghost" id="visibleExprTpl" type="button" title="Insert a starter expression">Expr</button>
+
+          <span class="adderhint">
+            <strong>Source</strong> applies to choice fields (Dropdown, MultiCheckbox, RadioButtons).
+            <strong>Visible when</strong> is optional and adds a VisibleExpression rule to the input you add
+            (e.g. <code>@action.inputs.set-field-on-all.value == 'false'</code>).
+          </span>
         </div>
 
         <!-- Form view: recursive field editor -->

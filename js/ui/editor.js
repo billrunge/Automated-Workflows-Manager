@@ -9,17 +9,15 @@
  *   "JSON" view : the raw textarea escape hatch.
  *
  * The "Add Input" picker scaffolds a correctly-shaped Input for
- * the chosen UIElementType (Dropdown, MultiCheckbox, RadioButtons,
- * Email, Switch, Hidden) and drops it into the Inputs array;
- * the tree editor then handles fine-tuning and nesting.
+ * the chosen UIElementType. For choice types (Dropdown,
+ * MultiCheckbox, RadioButtons) a Source selector chooses between
+ * hardcoded InputSources and an Object Manager query. An optional
+ * "Visible when" expression is dropped into Properties as a
+ * VisibleExpression conditional-visibility rule.
  *
  * Before every save, validateBody() checks the working object
  * against the Automated Workflows schema so the server isn't
- * handed a body it will reject:
- *   - required top-level fields (ID, Group; Steps for actions)
- *   - every Input has a valid UIElementType
- *   - every Input carries AT MOST ONE of InputSources /
- *     ObjectManagerQueryInputSource / BooleanInputSource
+ * handed a body it will reject.
  *
  * workingObj is the single source of truth.
  * ========================================================== */
@@ -30,16 +28,19 @@ import { ENTITY } from "../config/settings.js";
 import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
 import { templateFor } from "../data/templates.js";
-import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
+import {
+  UI_ELEMENT_TYPES, UI_ELEMENT_HELP, CHOICE_TYPES,
+  makeInput, buildVisibleExpression
+} from "../data/inputTemplates.js";
 import { setStatus } from "./status.js";
 import { loadList } from "../features/list.js";
 import { createTreeEditor } from "./treeEditor.js";
 
 const QUICK_FIELDS = ["fLabel", "fId", "fGroup", "fVersion"];
 
-/* The only element types the server accepts. Kept as a Set for
-   O(1) validation and derived from the shared picker list so the
-   two never drift apart. */
+/* The only element types the server accepts, as a Set for O(1)
+   validation, derived from the shared picker list so the two
+   never drift apart. */
 const VALID_UI_TYPES = new Set(UI_ELEMENT_TYPES);
 
 /* The three mutually-exclusive value-source keys for an Input. */
@@ -83,15 +84,65 @@ function populateInputTypePicker() {
   });
 }
 
+/* ---------- Enable/disable the Source selector by type ---------- */
+/* The value source only applies to choice fields. For non-choice
+   types (Email/Switch/Hidden) the selector is disabled and reset. */
+function updateAdderControls() {
+  const uiType = $("inputType").value;
+  const isChoice = CHOICE_TYPES.has(uiType);
+  const src = $("inputSource");
+  if (src) {
+    src.disabled = !isChoice;
+    if (!isChoice) src.value = "hardcoded";
+    src.title = isChoice
+      ? "Where the choices come from"
+      : "Only applies to choice fields (Dropdown, MultiCheckbox, RadioButtons)";
+  }
+}
+
 /* ---------- Add a type-aware Input to workingObj.Inputs ---------- */
 function addInput() {
   const uiType = $("inputType").value || "Dropdown";
+  const sourceMode = ($("inputSource") && !$("inputSource").disabled)
+    ? $("inputSource").value
+    : "hardcoded";
+  const visibleExpr = $("visibleExpr") ? $("visibleExpr").value.trim() : "";
+
   if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
   // Suffix helps keep default IDs distinct when adding several quickly.
   const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
-  workingObj.Inputs.push(makeInput(uiType, suffix));
+
+  workingObj.Inputs.push(makeInput(uiType, suffix, {
+    sourceMode,
+    visibleExpression: visibleExpr,
+    entity: state.currentTab
+  }));
+
+  // One-shot: clear the expression field so it doesn't silently
+  // attach to the next input the user adds.
+  if ($("visibleExpr")) $("visibleExpr").value = "";
+
   tree.render();
-  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
+
+  const bits = [`Added a ${uiType} input`];
+  if (CHOICE_TYPES.has(uiType)) {
+    bits.push(sourceMode === "query" ? "with an Object Manager query source" : "with hardcoded values");
+  }
+  if (visibleExpr) bits.push("and a visibility rule");
+  setStatus(bits.join(" ") + ". Edit its fields below.", "info");
+}
+
+/* Insert a starter VisibleExpression into the "Visible when" field,
+   referencing the first other input if one exists. */
+function insertVisibleExprTemplate() {
+  const el = $("visibleExpr");
+  if (!el) return;
+  let sourceId = "";
+  if (Array.isArray(workingObj.Inputs) && workingObj.Inputs.length) {
+    sourceId = workingObj.Inputs[0].ID || "";
+  }
+  el.value = buildVisibleExpression(state.currentTab, sourceId, "value");
+  el.focus();
 }
 
 /* ---------- One-time wiring of tree + listeners ---------- */
@@ -107,7 +158,10 @@ function ensureWired() {
     });
   });
   populateInputTypePicker();
+  updateAdderControls();
+  $("inputType").addEventListener("change", updateAdderControls);
   $("addInput").addEventListener("click", addInput);
+  if ($("visibleExprTpl")) $("visibleExprTpl").addEventListener("click", insertVisibleExprTemplate);
   wired = true;
 }
 
@@ -122,6 +176,8 @@ export function openEditor(existingItem) {
   ensureWired();
   tree.setData(workingObj);
   populateQuickFields();
+  updateAdderControls();
+  if ($("visibleExpr")) $("visibleExpr").value = "";
   setView("form");
 
   $("overlay").classList.add("show");
@@ -224,16 +280,17 @@ export function validateBody(obj, tabKey) {
       if (!inp.ID || !String(inp.ID).trim()) {
         problems.push(`${where}: an ID is required.`);
       }
-      if (!inp.Label || !String(inp.Label).trim()) {
+      if (!inp.Label && inp.UIElementType !== "Hidden") {
         problems.push(`${where}: a Label is required.`);
       }
 
       // UIElementType must be one of the documented enum values.
-      if (!inp.UIElementType) {
+      const uiType = inp.UIElementType;
+      if (!uiType) {
         problems.push(`${where}: UIElementType is required.`);
-      } else if (!VALID_UI_TYPES.has(inp.UIElementType)) {
+      } else if (!VALID_UI_TYPES.has(uiType)) {
         problems.push(
-          `${where}: "${inp.UIElementType}" is not a valid UIElementType. ` +
+          `${where}: "${uiType}" is not a valid UIElementType. ` +
           `Use one of: ${UI_ELEMENT_TYPES.join(", ")}.`
         );
       }
@@ -247,9 +304,42 @@ export function validateBody(obj, tabKey) {
         );
       }
 
+      // Source-key placement rules.
+      const isChoice = CHOICE_TYPES.has(uiType);
+      if (inp.InputSources != null) {
+        if (!isChoice) {
+          problems.push(`${where}: InputSources only applies to a choice field (Dropdown, MultiCheckbox, RadioButtons).`);
+        } else if (!Array.isArray(inp.InputSources) || inp.InputSources.length === 0) {
+          problems.push(`${where}: InputSources must be a non-empty array.`);
+        }
+      }
+      if (inp.ObjectManagerQueryInputSource != null) {
+        if (!isChoice) {
+          problems.push(`${where}: ObjectManagerQueryInputSource only applies to a choice field.`);
+        } else {
+          const q = inp.ObjectManagerQueryInputSource;
+          if (!q.LabelFieldName) problems.push(`${where}: query source needs a LabelFieldName.`);
+          if (!q.ValueFieldName) problems.push(`${where}: query source needs a ValueFieldName.`);
+          if (q.ArtifactTypeID == null && !q.Guid) {
+            problems.push(`${where}: query source needs an ArtifactTypeID or a Guid.`);
+          }
+        }
+      }
+      if (inp.BooleanInputSource != null && uiType !== "Switch") {
+        problems.push(`${where}: BooleanInputSource only applies to a Switch.`);
+      }
+
       // A Switch should be backed by a BooleanInputSource.
-      if (inp.UIElementType === "Switch" && inp.BooleanInputSource == null) {
+      if (uiType === "Switch" && inp.BooleanInputSource == null) {
         problems.push(`${where}: a Switch needs a BooleanInputSource.`);
+      }
+
+      // VisibleExpression, if present, must be a non-empty string.
+      if (inp.Properties && inp.Properties.VisibleExpression != null) {
+        const ve = inp.Properties.VisibleExpression;
+        if (typeof ve !== "string" || !ve.trim()) {
+          problems.push(`${where}: VisibleExpression must be a non-empty string.`);
+        }
       }
     });
   }

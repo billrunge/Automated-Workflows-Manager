@@ -1,9 +1,9 @@
 # Project Snapshot
-Generated: 2026-07-24T19:12:49Z
+Generated: 2026-07-24T19:18:30Z
 Commit: 6e452d5
 
 ----- BEGIN FILE: css/styles.css -----
-(sha1: a9ccf0cc560564783efb147bc66b56daf05348a7)
+(sha1: bbf0b811b3ea0fefda3c9ee7ec5f1af0fbb6e081)
 
 :root{
   --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
@@ -45,9 +45,9 @@ tr:hover td{background:#f7f9fb}
 .pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
 .rowbtns{display:flex;gap:6px;white-space:nowrap}
 .empty{padding:26px;text-align:center;color:var(--muted)}
+/* Status banner: errors (red) and brief info (blue) only. Success is silent. */
 .status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
 .status.show{display:block}
-.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
 .status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
 .status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
 /* modal */
@@ -103,7 +103,7 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 ----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: 7a7f6aa5a25daafe779eeb931b1f1ec193abd650)
+(sha1: 3703c5af1b99d1b8c135751b65b1231545c587f5)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -130,7 +130,6 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 
     <div class="toolbar">
       <button id="newBtn" class="primary">+ New <span class="entlabel">Trigger</span></button>
-      <button id="refreshBtn" class="ghost">Refresh</button>
       <div class="spacer"></div>
       <input id="search" class="search" placeholder="Filter by label, ID, or group..." />
     </div>
@@ -220,13 +219,16 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 ----- END FILE: index.html -----
 
 ----- BEGIN FILE: js/app.js -----
-(sha1: 80ad42d90b2dd29a86eaedd197e320b3b5634c67)
+(sha1: 0724eb1517b02ce3c720cef42909821276d88bae)
 
 "use strict";
 
 /* ============================================================
  * Application entry point (loaded as a module, so deferred).
  * Resolves context, wires events, kicks off the first load.
+ *
+ * There is no manual Refresh button: the list auto-refreshes on
+ * boot, on every tab switch, and after every save/delete.
  * ========================================================== */
 
 import { $ } from "./core/utils.js";
@@ -247,14 +249,12 @@ function initContext() {
     setStatus("Could not detect a Workspace ID (AppID) from the page URL. Open this page from within a workspace.", "err");
     $("grid").innerHTML = `<tr><td colspan="5" class="empty">No workspace context.</td></tr>`;
     $("newBtn").disabled = true;
-    $("refreshBtn").disabled = true;
     return false;
   }
   return true;
 }
 
 function wireEvents() {
-  $("refreshBtn").onclick = loadList;
   $("search").oninput = renderGrid;
 
   document.querySelectorAll(".tab").forEach(t =>
@@ -295,31 +295,18 @@ main();
 ----- END FILE: js/app.js -----
 
 ----- BEGIN FILE: js/config/settings.js -----
-(sha1: bf617cf1752d87be31d1e0f01bbfa773c66a1b24)
+(sha1: f30ae68034d6e8e0c1072a37e6bedfc2f5658f81)
 
 "use strict";
 
-/* ============================================================
- * Fixed application configuration.
- * ========================================================== */
+/* Fixed application configuration. */
 
 export const API_VERSION = "v2";
-
 export const API_ROOT = "/Relativity.REST/api/relativity-automated-workflows";
 
 export const ENTITY = {
-  triggers: {
-    key: "triggers",
-    path: "/triggers",
-    singular: "Trigger",
-    lowerSingular: "trigger"
-  },
-  actions: {
-    key: "actions",
-    path: "/actions",
-    singular: "Action",
-    lowerSingular: "action"
-  }
+  triggers: { key: "triggers", path: "/triggers", singular: "Trigger", lowerSingular: "trigger" },
+  actions:  { key: "actions",  path: "/actions",  singular: "Action",  lowerSingular: "action" }
 };
 
 ----- END FILE: js/config/settings.js -----
@@ -428,7 +415,7 @@ export const state = {
 ----- END FILE: js/core/state.js -----
 
 ----- BEGIN FILE: js/core/utils.js -----
-(sha1: 0d899f6c6fa722cb4d594b1bddd198e78c4d8e2e)
+(sha1: 243085928f3667af847cb6118a6604d985139ceb)
 
 "use strict";
 
@@ -441,49 +428,21 @@ export function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-export function clone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
+export function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
 
 ----- END FILE: js/core/utils.js -----
 
 ----- BEGIN FILE: js/data/inputTemplates.js -----
-(sha1: e2cc627acf8831777616e1229f7c8349722400cb)
+(sha1: 1a3deff40807f65c3d4ab46e35431e5ce42b9eb5)
 
 "use strict";
 
 /* ============================================================
  * Type-aware Input scaffolds for each UIElementType.
- *
- * Picking a UIElementType inserts an Input object pre-shaped
- * with exactly the sub-fields that element type needs, based on
- * the Automated Workflows REST schema:
- *
- *   - Text            plain string entry
- *   - Number          numeric entry
- *   - Email           email entry (semicolon-separated)
- *   - Dropdown        backed by an ObjectManagerQueryInputSource
- *   - MultiCheckbox   backed by InputSources (each optionally
- *                     nesting Children for sub-choices)
- *   - Switch          backed by a BooleanInputSource
- *
- * Every scaffold carries the common Input fields (Label, ID,
- * UIElementType) and a Properties object so a dynamic-rule
- * VisibleExpression can be added later. The tree editor then
- * lets the user fine-tune any value or nest further.
  * ========================================================== */
 
-/* Order shown in the picker. */
-export const UI_ELEMENT_TYPES = [
-  "Text",
-  "Number",
-  "Email",
-  "Dropdown",
-  "MultiCheckbox",
-  "Switch"
-];
+export const UI_ELEMENT_TYPES = ["Text", "Number", "Email", "Dropdown", "MultiCheckbox", "Switch"];
 
-/* Short human descriptions for the picker's title/help. */
 export const UI_ELEMENT_HELP = {
   Text:          "Single-line text entry.",
   Number:        "Numeric entry.",
@@ -493,80 +452,53 @@ export const UI_ELEMENT_HELP = {
   Switch:        "Boolean toggle backed by a BooleanInputSource."
 };
 
-/* Build a fresh Input object for the given UIElementType.
-   `idSuffix` (optional) is appended to the default ID to help
-   keep IDs unique when several are added quickly. */
 export function makeInput(uiType, idSuffix) {
   const suffix = idSuffix != null ? String(idSuffix) : "";
   const base = {
     Label: `New ${uiType}`,
     ID: `new-${uiType.toLowerCase()}${suffix}`,
     UIElementType: uiType,
-    Properties: {}          // add "VisibleExpression": "..." here for dynamic rules
+    Properties: {}
   };
 
   switch (uiType) {
     case "Text":
       return { ...base, Placeholder: "", DefaultValue: "" };
-
     case "Number":
       return { ...base, Placeholder: "", DefaultValue: "0" };
-
     case "Email":
-      return {
-        ...base,
-        Placeholder: "Enter email addresses separated by a semicolon (;)",
-        DefaultValue: ""
-      };
-
+      return { ...base, Placeholder: "Enter email addresses separated by a semicolon (;)", DefaultValue: "" };
     case "Dropdown":
       return {
-        ...base,
-        Placeholder: "Select",
+        ...base, Placeholder: "Select",
         ObjectManagerQueryInputSource: {
-          LabelFieldName: "Name",
-          ValueFieldName: "ArtifactID",
-          Guid: "00000000-0000-0000-0000-000000000000",
-          ArtifactTypeID: 15
+          LabelFieldName: "Name", ValueFieldName: "ArtifactID",
+          Guid: "00000000-0000-0000-0000-000000000000", ArtifactTypeID: 15
         }
       };
-
     case "MultiCheckbox":
       return {
-        ...base,
-        DefaultValue: "",
+        ...base, DefaultValue: "",
         InputSources: [
           { Label: "Option One", Value: "option-1" },
           { Label: "Option Two", Value: "option-2" }
         ]
       };
-
     case "Switch":
       return {
-        ...base,
-        DefaultValue: "true",
-        BooleanInputSource: {
-          TrueValue: "true",
-          FalseValue: "false",
-          TrueLabel: "Yes",
-          FalseLabel: "No"
-        }
+        ...base, DefaultValue: "true",
+        BooleanInputSource: { TrueValue: "true", FalseValue: "false", TrueLabel: "Yes", FalseLabel: "No" }
       };
-
     default:
       return { ...base, DefaultValue: "" };
   }
 }
 
-/* A single nested child choice for a MultiCheckbox InputSource,
-   matching the schema's Children shape. */
 export function makeChildChoice() {
   return {
     ID: "child-choices",
     UIElementType: "MultiCheckbox",
-    InputSources: [
-      { Label: "Child Option", Value: "child-option" }
-    ],
+    InputSources: [{ Label: "Child Option", Value: "child-option" }],
     Properties: {}
   };
 }
@@ -639,7 +571,7 @@ export function templateFor(tabKey) {
 ----- END FILE: js/data/templates.js -----
 
 ----- BEGIN FILE: js/features/list.js -----
-(sha1: 95052087cfca584053f826d3ffe67fd442fea931)
+(sha1: b30b29a07ddd07075c6da69b5b34f3d54031eb31)
 
 "use strict";
 
@@ -648,17 +580,16 @@ export function templateFor(tabKey) {
 import { state } from "../core/state.js";
 import { listEntities } from "../services/entityService.js";
 import { renderGrid } from "../ui/grid.js";
-import { setStatus } from "../ui/status.js";
+import { setStatus, clearStatus } from "../ui/status.js";
 
 export async function loadList() {
   if (!state.workspaceId) return;
   const tab = state.currentTab;
-  setStatus(`Loading ${tab}…`, "info");
   try {
     const items = await listEntities(tab);
     state.cache[tab] = items;
     renderGrid();
-    setStatus(`Loaded ${items.length} ${tab}.`, "ok");
+    clearStatus();                 // success is silent (no green toast)
   } catch (e) {
     state.cache[tab] = [];
     renderGrid();
@@ -697,25 +628,20 @@ export async function deleteEntity(tabKey, item) {
 ----- END FILE: js/services/entityService.js -----
 
 ----- BEGIN FILE: js/ui/editor.js -----
-(sha1: 54663484ebdd3250ebec0ae8b3a9bfff12a035ef)
+(sha1: fa49c5ac6fea9fae2a83d182aaafdfeffd1f1fd1)
 
 "use strict";
 
 /* ============================================================
  * Editor modal.
  *
- * Two synchronized ways to edit a trigger/action body:
- *   - "Form" view : quick fields (Label/ID/Group/Version), a
- *                   type-aware "Add Input" picker, and a
- *                   recursive tree editor for everything else.
- *   - "JSON" view : the raw textarea escape hatch.
+ * Two synchronized views: "Form" (quick fields + type-aware
+ * Add Input picker + recursive tree editor) and "JSON" (raw
+ * escape hatch). `workingObj` is the single source of truth.
  *
- * The "Add Input" picker scaffolds a correctly-shaped Input for
- * the chosen UIElementType (Text, Number, Email, Dropdown,
- * MultiCheckbox, Switch) and drops it into the Inputs array;
- * the tree editor then handles fine-tuning and nesting.
- *
- * `workingObj` is the single source of truth.
+ * Success is silent: on save/delete we clear the banner and
+ * refresh the list rather than showing a green toast. Only
+ * errors are surfaced.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";
@@ -725,7 +651,7 @@ import { messagesFrom } from "../core/api.js";
 import { saveEntity, deleteEntity } from "../services/entityService.js";
 import { templateFor } from "../data/templates.js";
 import { UI_ELEMENT_TYPES, UI_ELEMENT_HELP, makeInput } from "../data/inputTemplates.js";
-import { setStatus } from "./status.js";
+import { setStatus, clearStatus } from "./status.js";
 import { loadList } from "../features/list.js";
 import { createTreeEditor } from "./treeEditor.js";
 
@@ -755,7 +681,7 @@ function applyQuickFieldsToObj() {
 /* ---------- Populate the UIElementType picker once ---------- */
 function populateInputTypePicker() {
   const sel = $("inputType");
-  if (sel.options.length) return; // already filled
+  if (sel.options.length) return;
   UI_ELEMENT_TYPES.forEach(tp => {
     const o = document.createElement("option");
     o.value = tp;
@@ -769,11 +695,9 @@ function populateInputTypePicker() {
 function addInput() {
   const uiType = $("inputType").value || "Text";
   if (!Array.isArray(workingObj.Inputs)) workingObj.Inputs = [];
-  // Suffix helps keep default IDs distinct when adding several quickly.
   const suffix = workingObj.Inputs.length ? "-" + (workingObj.Inputs.length + 1) : "";
   workingObj.Inputs.push(makeInput(uiType, suffix));
   tree.render();
-  setStatus(`Added a ${uiType} input. Edit its fields below.`, "info");
 }
 
 /* ---------- One-time wiring of tree + listeners ---------- */
@@ -818,8 +742,8 @@ export function setView(next) {
   if (next === "json") {
     applyQuickFieldsToObj();
     $("fJson").value = JSON.stringify(workingObj, null, 2);
-    $("treeWrap").style.display  = "none";
-    $("quickGrid").style.display = "none";
+    $("treeWrap").style.display   = "none";
+    $("quickGrid").style.display  = "none";
     $("inputAdder").style.display = "none";
     $("fJson").style.display      = "";
     $("formatJson").style.display = "";
@@ -883,9 +807,9 @@ export async function saveItem() {
       setStatus("Server rejected save: " + (messagesFrom(json) || "unknown reason"), "err");
       return;
     }
-    setStatus(messagesFrom(json) || "Saved.", "ok");
+    clearStatus();          // success is silent
     closeEditor();
-    await loadList();
+    await loadList();       // auto-refresh the grid
   } catch (e) {
     setStatus("Save failed: " + e.message, "err");
   }
@@ -906,8 +830,8 @@ export async function deleteItem(item) {
       setStatus("Not deleted: " + (messagesFrom(json) || "it may be in use by a workflow."), "err");
       return;
     }
-    setStatus(messagesFrom(json) || "Deleted.", "ok");
-    await loadList();
+    clearStatus();          // success is silent
+    await loadList();       // auto-refresh the grid
   } catch (e) {
     setStatus("Delete failed: " + e.message, "err");
   }
@@ -916,7 +840,7 @@ export async function deleteItem(item) {
 ----- END FILE: js/ui/editor.js -----
 
 ----- BEGIN FILE: js/ui/grid.js -----
-(sha1: 4a66b9c0a1b9ce6e943e80cc2ae3dd4de6b5d7a4)
+(sha1: 3fce209c84d8a718b40b6948ddd50dded3f1215f)
 
 "use strict";
 
@@ -936,9 +860,7 @@ export function filteredItems() {
   return items;
 }
 
-export function visibleItems() {
-  return filteredItems();
-}
+export function visibleItems() { return filteredItems(); }
 
 export function renderGrid() {
   const grid = $("grid");
@@ -970,11 +892,14 @@ export function renderGrid() {
 ----- END FILE: js/ui/grid.js -----
 
 ----- BEGIN FILE: js/ui/status.js -----
-(sha1: 53940c1e6cf47e2dd937ecfd26bbfeea1f0bd27a)
+(sha1: 53bd788e056c87ad0ba7ecbffd19527a7a26e2e3)
 
 "use strict";
 
-/* Status banner rendering. */
+/* Status banner rendering.
+ *
+ * Success is now silent — we clear the banner rather than show a
+ * green toast. Only errors (red) and brief info (blue) render. */
 
 import { $ } from "../core/utils.js";
 
@@ -985,17 +910,22 @@ export function setStatus(msg, type) {
 }
 
 export function clearStatus() {
-  $("status").className = "status";
+  const el = $("status");
+  el.textContent = "";
+  el.className = "status";
 }
 
 ----- END FILE: js/ui/status.js -----
 
 ----- BEGIN FILE: js/ui/tabs.js -----
-(sha1: 813f4b5843fb73cf0500e6951ca17f4a37bea36f)
+(sha1: 7ca3317502658fe2bff7a4ad501e6c4366239316)
 
 "use strict";
 
-/* Tab switching between Triggers and Actions. */
+/* Tab switching between Triggers and Actions.
+ *
+ * Renders instantly from cache, then always re-fetches so the
+ * grid is live without a manual Refresh button. */
 
 import { $ } from "../core/utils.js";
 import { state } from "../core/state.js";
@@ -1013,26 +943,21 @@ export function switchTab(tab) {
     e.textContent = ENTITY[tab].singular);
 
   $("search").value = "";
-  renderGrid();
+  renderGrid();                    // instant paint from cache
 
-  if (state.workspaceId && !(state.cache[tab] || []).length) loadList();
+  if (state.workspaceId) loadList(); // always refresh from server
 }
 
 ----- END FILE: js/ui/tabs.js -----
 
 ----- BEGIN FILE: js/ui/treeEditor.js -----
-(sha1: 01a34e56f8f8a4067533a742c12463243d2bc619)
+(sha1: cfb334d0659509ce81cef73e7855d56792173c14)
 
 "use strict";
 
 /* ============================================================
- * Recursive JSON tree editor.
- *
- * Renders an editable, type-aware, infinitely-nestable view of
- * a plain JS object/array. Supports editing primitives, changing
- * a node's type, renaming keys, adding/removing fields & items,
- * and collapsing branches. Mutates the supplied object IN PLACE
- * so the caller always holds the live value via getData().
+ * Recursive JSON tree editor. Mutates the supplied object in
+ * place; caller reads the live value via getData().
  * ========================================================== */
 
 const TYPES = ["string", "number", "boolean", "object", "array", "null"];

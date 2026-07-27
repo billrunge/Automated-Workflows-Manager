@@ -8,8 +8,7 @@
  * escape hatch). `workingObj` is the single source of truth.
  *
  * Success is silent: on save/delete we clear the banner and
- * refresh the list rather than showing a green toast. Only
- * errors are surfaced.
+ * refresh the list rather than showing a green toast.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";

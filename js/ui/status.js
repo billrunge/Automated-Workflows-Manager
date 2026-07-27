@@ -2,7 +2,7 @@
 
 /* Status banner rendering.
  *
- * Success is now silent — we clear the banner rather than show a
+ * Success is silent — we clear the banner rather than show a
  * green toast. Only errors (red) and brief info (blue) render. */
 
 import { $ } from "../core/utils.js";

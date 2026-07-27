@@ -24,7 +24,7 @@ button.ghost{background:transparent;border-color:var(--border)}
 button.sm{padding:4px 9px;font-size:12px}
 button:disabled{opacity:.5;cursor:not-allowed}
 
-main{max-width:none;margin:0 auto;padding:16px}
+main{max-width:none;margin:0;padding:16px 24px}
 
 .tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
 .tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
@@ -60,7 +60,11 @@ tr:hover td{background:#f7f9fb}
 .modal h2{margin:0;font-size:16px}
 .modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
 .modal .body{padding:18px;overflow:auto}
-.modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+.modal .foot{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:14px 18px;border-top:1px solid var(--border)}
+/* In-modal status banner: fills the space left of the footer buttons.
+   Hidden (display:none via .status) until a message is set, so the
+   buttons stay right-aligned when there's nothing to show. */
+.modalstatus{flex:1;margin:0;margin-right:auto;text-align:left;min-height:0}
 
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
 .grid .field{display:flex;flex-direction:column;gap:3px}

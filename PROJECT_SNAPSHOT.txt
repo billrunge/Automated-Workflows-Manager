@@ -1,23 +1,26 @@
 # Project Snapshot
-Generated: 2026-07-24T19:18:30Z
-Commit: 6e452d5
+Generated: 2026-07-27T13:57:04Z
+Commit: 7cecb03
 
 ----- BEGIN FILE: css/styles.css -----
-(sha1: bbf0b811b3ea0fefda3c9ee7ec5f1af0fbb6e081)
+(sha1: d84ae3c54d6a50a387311c8579bd7df04ca4b1d7)
 
 :root{
-  --bg:#f4f5f7; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
+  --bg:#e8edf4; --panel:#ffffff; --border:#d9dde3; --text:#1f2733;
   --muted:#6b7684; --accent:#0a6ed1; --accent-dk:#084f96;
   --danger:#c0392b; --danger-dk:#96271a; --ok:#2e7d32; --warn:#b26a00;
   --shadow:0 1px 3px rgba(0,0,0,.12);
 }
+
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 "Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
 header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 16px}
 h1{font-size:18px;margin:0 0 4px}
+
 input,select,textarea{font:inherit;color:var(--text);background:#fff;border:1px solid var(--border);
   border-radius:4px;padding:6px 8px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(10,110,209,.15)}
+
 button{font:inherit;cursor:pointer;border:1px solid transparent;border-radius:4px;padding:7px 14px;background:#eef1f5;color:var(--text)}
 button:hover{background:#e2e7ee}
 button.primary{background:var(--accent);color:#fff}
@@ -27,30 +30,37 @@ button.danger:hover{background:var(--danger-dk)}
 button.ghost{background:transparent;border-color:var(--border)}
 button.sm{padding:4px 9px;font-size:12px}
 button:disabled{opacity:.5;cursor:not-allowed}
-main{padding:16px}
+
+main{max-width:none;margin:0 auto;padding:16px}
+
 .tabs{display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border)}
 .tab{padding:9px 18px;border:1px solid transparent;border-bottom:none;border-radius:6px 6px 0 0;
   background:transparent;color:var(--muted);font-weight:600}
 .tab.active{background:var(--panel);color:var(--accent);border-color:var(--border);margin-bottom:-1px}
+
 .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:10px}
 .toolbar .spacer{flex:1}
-.toolbar .search{width:240px}
+.toolbar .search{min-width:220px}
+
 .card{background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);overflow:hidden}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
 th{background:#fafbfc;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#f7f9fb}
+
 .mono{font-family:Consolas,"Courier New",monospace;font-size:12.5px}
 .pill{display:inline-block;background:#eef2f7;border:1px solid var(--border);border-radius:10px;padding:1px 9px;font-size:12px}
 .rowbtns{display:flex;gap:6px;white-space:nowrap}
 .empty{padding:26px;text-align:center;color:var(--muted)}
-/* Status banner: errors (red) and brief info (blue) only. Success is silent. */
+
 .status{min-height:20px;padding:8px 12px;border-radius:4px;margin-bottom:10px;display:none}
 .status.show{display:block}
+.status.ok{background:#e7f4e8;color:var(--ok);border:1px solid #b7dfba}
 .status.err{background:#fbeae7;color:var(--danger);border:1px solid #f0c1b9}
 .status.info{background:#e8f1fb;color:var(--accent-dk);border:1px solid #bcd8f5}
-/* modal */
+
+/* ---------- modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(15,23,35,.45);display:none;align-items:center;justify-content:center;padding:20px;z-index:50}
 .overlay.show{display:flex}
 .modal{background:var(--panel);border-radius:8px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.3)}
@@ -58,9 +68,11 @@ tr:hover td{background:#f7f9fb}
 .modal .head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
 .modal .body{padding:18px;overflow:auto}
 .modal .foot{display:flex;gap:8px;justify-content:flex-end;padding:14px 18px;border-top:1px solid var(--border)}
+
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
 .grid .field{display:flex;flex-direction:column;gap:3px}
 .grid label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+
 .jsonlabel{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
 textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospace;font-size:12.5px;resize:vertical;white-space:pre;overflow:auto}
 .hint{font-size:12px;color:var(--muted);margin-top:6px}
@@ -98,12 +110,12 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 .tdel:hover{background:#fbeae7}
 .tadd{color:var(--accent);border-color:#bcd8f5;flex:0 0 auto}
 .tadd:hover{background:#eaf3fc}
-.troot{margin-top:8px}
+.troot{margin-top:6px}
 
 ----- END FILE: css/styles.css -----
 
 ----- BEGIN FILE: index.html -----
-(sha1: 3703c5af1b99d1b8c135751b65b1231545c587f5)
+(sha1: 7783cac7cbc15c1c0c0ecb6c8d55e0183f42493d)
 
 <!DOCTYPE html>
 <html lang="en">
@@ -116,10 +128,6 @@ textarea.json{width:100%;height:320px;font-family:Consolas,"Courier New",monospa
 </head>
 
 <body>
-  <header>
-    <h1>Automated Workflows Manager</h1>
-  </header>
-
   <main>
     <div id="status" class="status"></div>
 
@@ -628,7 +636,7 @@ export async function deleteEntity(tabKey, item) {
 ----- END FILE: js/services/entityService.js -----
 
 ----- BEGIN FILE: js/ui/editor.js -----
-(sha1: fa49c5ac6fea9fae2a83d182aaafdfeffd1f1fd1)
+(sha1: da1268d74e6e962a7948bd0f782b7c0b2caca732)
 
 "use strict";
 
@@ -640,8 +648,7 @@ export async function deleteEntity(tabKey, item) {
  * escape hatch). `workingObj` is the single source of truth.
  *
  * Success is silent: on save/delete we clear the banner and
- * refresh the list rather than showing a green toast. Only
- * errors are surfaced.
+ * refresh the list rather than showing a green toast.
  * ========================================================== */
 
 import { $, clone } from "../core/utils.js";
@@ -892,13 +899,13 @@ export function renderGrid() {
 ----- END FILE: js/ui/grid.js -----
 
 ----- BEGIN FILE: js/ui/status.js -----
-(sha1: 53bd788e056c87ad0ba7ecbffd19527a7a26e2e3)
+(sha1: 30192851573d02dcb3fdb649580b3df2087d545a)
 
 "use strict";
 
 /* Status banner rendering.
  *
- * Success is now silent — we clear the banner rather than show a
+ * Success is silent — we clear the banner rather than show a
  * green toast. Only errors (red) and brief info (blue) render. */
 
 import { $ } from "../core/utils.js";
